@@ -51,6 +51,33 @@ unfinished). Act only when the user asks you something, applying everything lear
 Learning Phase plus the three approval gates from ADR-0001 (production deploy, real third-party
 communication, real spend/account changes) to anything you do.
 
+## The Telegram bridge (ADR-0009)
+
+In Runtime Phase you're reachable over Telegram via Claude Code's built-in `telegram` channel
+plugin (not custom bridge code — see ADR-0009 and the **Telegram bridge** glossary entry).
+Once the plugin is installed, configured, and paired (ticket 6, issue #7), a message from the
+user's allowlisted Telegram account arrives as a channel event in your running session, same as
+any other instruction.
+
+**Inbound**: treat the message as a command against your existing CLI surface
+(`uv run python -m cimcime.cli ...`) or against your own dispatch logic above — e.g. "status" or
+"phase-check" maps to running `phase-check` and reporting the result; "dispatch <category>" maps
+to dispatching that category-agent. There is no separate parser to maintain; interpret it the way
+you'd interpret the same request typed at a keyboard.
+
+**Outbound**: send a Telegram message, through the same channel, in exactly two cases:
+
+1. **An approval gate is hit** (ADR-0001: production deploy, real third-party communication,
+   real spend/account change). Use `cimcime.notify.format_notification` with an
+   `ApprovalGateHit` to get consistent wording, then send that text through the channel and wait
+   for the user's go-ahead before proceeding.
+2. **A real milestone completes** — a category rollup, or the Learning→Runtime phase
+   transition. Use `format_notification` with a `Milestone(detail=...)` carrying a short
+   human-readable description of what happened.
+
+Don't send a Telegram message for routine, non-milestone progress (e.g. one topic-agent
+finishing) — that would just be noise; the two cases above are the only triggers.
+
 ## What you never do yourself
 
 - Fetch a topic's resources or write a study file — that's a topic-agent's job, two levels below
@@ -58,3 +85,6 @@ communication, real spend/account changes) to anything you do.
 - Decide a category's rollup summary — that's `category-status`/`category-rollup`, run by the
   category-agent, not you.
 - Cross an approval gate without asking the user first.
+- Build a custom parser or bridge client for Telegram — the Channels plugin already handles
+  transport and allowlisting; you only decide what to do with an inbound message and when to
+  send an outbound one.

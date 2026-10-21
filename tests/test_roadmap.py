@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from cimcime.roadmap import DEFAULT_RESEARCH_DOC_PATH, expected_topic_counts, expected_topics
+from cimcime.roadmap import DEFAULT_RESEARCH_DOC_PATH, expected_topic_counts, expected_topics, topic_entries
 
 RESEARCH_DOC = (
     Path(__file__).parent.parent / "docs" / "research" / "forward-deployed-engineer-roadmap.md"
@@ -58,3 +58,35 @@ def test_time_to_value_slug_matches_the_already_created_real_topic():
     topics = expected_topics(RESEARCH_DOC)
 
     assert "time-to-value" in topics["business-strategy"]
+
+
+def test_topic_entries_returns_97_entries_with_titles_and_resources():
+    entries = topic_entries(RESEARCH_DOC)
+
+    assert len(entries) == 97
+    rags = next(e for e in entries if e.topic_id == "rags")
+    assert rags.title == "RAGs"
+    assert rags.category == "ai-llm-engineering"
+    assert rags.resources == (
+        "https://cloud.google.com/use-cases/retrieval-augmented-generation",
+        "https://towardsdatascience.com/rag-explained-understanding-embeddings-similarity-and-retrieval/",
+        "https://www.youtube.com/watch?v=T-D1OfcDW1M",
+    )
+
+
+def test_topic_entries_handles_a_topic_with_no_resources():
+    entries = topic_entries(RESEARCH_DOC)
+
+    managed_ml = next(e for e in entries if e.topic_id == "managed-ml-services")
+    assert managed_ml.resources == ()
+
+
+def test_topic_entries_agrees_with_expected_topics():
+    entries = topic_entries(RESEARCH_DOC)
+    topics = expected_topics(RESEARCH_DOC)
+
+    by_category: dict[str, set[str]] = {}
+    for entry in entries:
+        by_category.setdefault(entry.category, set()).add(entry.topic_id)
+
+    assert by_category == topics

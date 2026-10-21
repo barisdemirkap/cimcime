@@ -131,3 +131,55 @@ def test_set_phase_changes_it(store: InMemoryStore):
 
     assert json.loads(output)["phase"] == "runtime"
     assert json.loads(run(["get-phase"], store))["phase"] == "runtime"
+
+
+def test_seed_creates_topics_from_a_fake_roster(store: InMemoryStore, monkeypatch):
+    from cimcime.roadmap import RoadmapTopic
+
+    monkeypatch.setattr(
+        "cimcime.cli.topic_entries",
+        lambda path: [
+            RoadmapTopic(
+                topic_id="docker",
+                category="platform-infra-devops",
+                title="Docker",
+                resources=("https://example.com/docker",),
+            )
+        ],
+    )
+
+    result = json.loads(run(["seed"], store))
+
+    assert result == {"created": 1, "skipped": 0}
+    created = store.get_topic("docker")
+    assert created.category == "platform-infra-devops"
+    assert created.title == "Docker"
+    assert created.resources == ("https://example.com/docker",)
+
+
+def test_seed_is_safe_to_rerun_and_skips_existing_topics(store: InMemoryStore, monkeypatch):
+    from cimcime.roadmap import RoadmapTopic
+
+    monkeypatch.setattr(
+        "cimcime.cli.topic_entries",
+        lambda path: [
+            RoadmapTopic(
+                topic_id="rag",  # already created by the `store` fixture
+                category="ai-llm-engineering",
+                title="RAG",
+                resources=(),
+            ),
+            RoadmapTopic(
+                topic_id="docker",
+                category="platform-infra-devops",
+                title="Docker",
+                resources=(),
+            ),
+        ],
+    )
+
+    first = json.loads(run(["seed"], store))
+    second = json.loads(run(["seed"], store))
+
+    assert first == {"created": 1, "skipped": 1}
+    assert second == {"created": 0, "skipped": 2}

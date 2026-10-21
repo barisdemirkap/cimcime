@@ -4,7 +4,7 @@ import argparse
 import json
 import sys
 
-from cimcime.roadmap import DEFAULT_RESEARCH_DOC_PATH, expected_topics
+from cimcime.roadmap import DEFAULT_RESEARCH_DOC_PATH, expected_topics, topic_entries
 from cimcime.state_store import (
     GitHubIssuesStore,
     Phase,
@@ -48,6 +48,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     set_phase = subparsers.add_parser("set-phase")
     set_phase.add_argument("phase", choices=[phase.value for phase in Phase])
+
+    subparsers.add_parser("seed")
 
     return parser
 
@@ -110,6 +112,19 @@ def _handle_set_phase(store: StateStore, args: argparse.Namespace) -> dict:
     return {"phase": store.get_phase().value}
 
 
+def _handle_seed(store: StateStore, args: argparse.Namespace) -> dict:
+    """Idempotent: a topic already tracked (by topic_id) is skipped, never duplicated."""
+    created = skipped = 0
+    for entry in topic_entries(DEFAULT_RESEARCH_DOC_PATH):
+        try:
+            store.get_topic(entry.topic_id)  # ValueError here means "not tracked yet"
+            skipped += 1
+        except ValueError:
+            store.create_topic(entry.topic_id, entry.category, entry.title, entry.resources)
+            created += 1
+    return {"created": created, "skipped": skipped}
+
+
 _HANDLERS = {
     "get-topic": _handle_get_topic,
     "update-status": _handle_update_status,
@@ -120,6 +135,7 @@ _HANDLERS = {
     "phase-check": _handle_phase_check,
     "get-phase": _handle_get_phase,
     "set-phase": _handle_set_phase,
+    "seed": _handle_seed,
 }
 
 

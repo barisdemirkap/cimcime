@@ -71,6 +71,22 @@ def test_query_by_category_only_returns_matching_topics(store: InMemoryStore):
     assert topic.topic_id == "rag"
 
 
+def test_post_category_rollup_is_recorded_for_that_category(store: InMemoryStore):
+    store.post_category_rollup("ai-llm-engineering", "1/3 topics researched")
+
+    assert store.posted_rollups["ai-llm-engineering"] == ["1/3 topics researched"]
+
+
+def test_post_category_rollup_keeps_history_per_category(store: InMemoryStore):
+    store.post_category_rollup("ai-llm-engineering", "0/3 topics researched")
+    store.post_category_rollup("ai-llm-engineering", "1/3 topics researched")
+
+    assert store.posted_rollups["ai-llm-engineering"] == [
+        "0/3 topics researched",
+        "1/3 topics researched",
+    ]
+
+
 def test_operating_on_an_unknown_topic_id_raises(store: InMemoryStore):
     with pytest.raises(ValueError):
         store.update_status("does-not-exist", TopicStatus.RESEARCHED)

@@ -4,14 +4,17 @@
 
 The orchestrator agent and persona of this self-learning Forward Deployed Engineer system — the
 top-level entity the user invokes directly (e.g. via Telegram or CLI). Dispatches category-agents
-and topic-agents, is the only agent permitted to dispatch subagents, and owns the system's
-lifecycle (see **Learning Phase** / **Runtime Phase**).
+(its direct children), and owns the system's lifecycle (see **Learning Phase** / **Runtime
+Phase**). Does not dispatch topic-agents directly — that's each category-agent's own job, per
+ADR-0008's vertical-only dispatch rule.
 
 ## Category-agent
 
 A subagent scoped to one of the functional domains derived from the roadmap.sh Forward Deployed
-Engineer path (e.g. AI & LLM Engineering, Client Engagement & Delivery, Platform/Infra). Coordinates
-the topic-agents within its domain. There are ~9 category-agents.
+Engineer path (e.g. AI & LLM Engineering, Client Engagement & Delivery, Platform/Infra). Dispatches
+and coordinates the topic-agents within its own domain only (ADR-0008: never another category's
+topic-agents), and rolls their aggregate status up into its category tracking issue. There are ~9
+category-agents.
 
 ## Topic-agent
 

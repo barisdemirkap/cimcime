@@ -44,3 +44,37 @@ def test_add_finding_appends_to_the_topic_findings(store: InMemoryStore):
     output = run(["add-finding", "rag", "a real finding"], store)
 
     assert json.loads(output)["findings"] == ["a real finding"]
+
+
+def test_category_status_tallies_without_posting_anything(store: InMemoryStore):
+    store.create_topic(topic_id="mcp", category="ai-llm-engineering", title="MCP", resources=[])
+    run(["update-status", "rag", "researched"], store)
+
+    output = run(["category-status", "ai-llm-engineering"], store)
+
+    result = json.loads(output)
+    assert result["category"] == "ai-llm-engineering"
+    assert result["total"] == 2
+    assert result["researched"] == 1
+    assert "ai-llm-engineering" not in store.posted_rollups
+
+
+def test_category_status_on_a_category_with_no_topics_yet(store: InMemoryStore):
+    output = run(["category-status", "platform-infra-devops"], store)
+
+    result = json.loads(output)
+    assert result["total"] == 0
+    assert result["researched"] == 0
+
+
+def test_category_rollup_posts_the_same_summary_category_status_would_report(
+    store: InMemoryStore,
+):
+    store.create_topic(topic_id="mcp", category="ai-llm-engineering", title="MCP", resources=[])
+    run(["update-status", "rag", "researched"], store)
+
+    status_result = json.loads(run(["category-status", "ai-llm-engineering"], store))
+    rollup_result = json.loads(run(["category-rollup", "ai-llm-engineering"], store))
+
+    assert rollup_result == status_result
+    assert store.posted_rollups["ai-llm-engineering"] == [status_result["summary"]]

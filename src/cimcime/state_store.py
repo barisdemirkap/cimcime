@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+from collections import Counter
 from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Any, Protocol, Sequence
@@ -23,6 +24,16 @@ class TopicRecord:
     findings: tuple[str, ...] = ()
 
 
+def summarize_category(topics: Sequence[TopicRecord]) -> str:
+    """The one tally/summary shape for a category's topics - lives here, not in the CLI,
+    so anything else that ever needs the same rollup (a dashboard, a report) reuses it."""
+    counts = Counter(topic.status.value for topic in topics)
+    total = len(topics)
+    researched = counts[TopicStatus.RESEARCHED.value]
+    breakdown = ", ".join(f"{count} {status}" for status, count in sorted(counts.items()))
+    return f"{researched}/{total} topics researched" + (f" ({breakdown})" if breakdown else "")
+
+
 class StateStore(Protocol):
     def create_topic(
         self, topic_id: str, category: str, title: str, resources: Sequence[str]
@@ -38,12 +49,15 @@ class StateStore(Protocol):
 
     def query_by_status(self, status: TopicStatus) -> list[TopicRecord]: ...
 
+    def post_category_rollup(self, category: str, summary: str) -> None: ...
+
 
 class InMemoryStore:
     """Fake StateStore for tests: no I/O, same contract as GitHubIssuesStore."""
 
     def __init__(self) -> None:
         self._topics: dict[str, TopicRecord] = {}
+        self.posted_rollups: dict[str, list[str]] = {}
 
     def create_topic(
         self, topic_id: str, category: str, title: str, resources: Sequence[str]
@@ -81,6 +95,9 @@ class InMemoryStore:
 
     def query_by_status(self, status: TopicStatus) -> list[TopicRecord]:
         return [t for t in self._topics.values() if t.status == status]
+
+    def post_category_rollup(self, category: str, summary: str) -> None:
+        self.posted_rollups.setdefault(category, []).append(summary)
 
     def _require(self, topic_id: str) -> TopicRecord:
         try:
@@ -201,6 +218,10 @@ class GitHubIssuesStore:
 
     def query_by_status(self, status: TopicStatus) -> list[TopicRecord]:
         return self._query(label=_STATUS_LABELS[status])
+
+    def post_category_rollup(self, category: str, summary: str) -> None:
+        number = self._find_or_create_category_issue(category)
+        self._run(["issue", "comment", str(number), "--body", summary])
 
     # -- internals --
 

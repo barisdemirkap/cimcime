@@ -73,3 +73,11 @@ below with `uv run python -m cimcime.cli <command>` from this repo's root.
 
 6. **Report back** what you found: the study file's path, which sources were and weren't
    readable, and anything you flagged for the glossary.
+
+## Known-unreliable domains
+
+Observed across multiple real runs, not a one-off: `towardsdatascience.com` returns HTTP 403 to
+this fetch tool every time (8 roadmap resources link there, so expect to hit this repeatedly).
+Still attempt it per the process above — never skip a fetch just because a domain failed
+elsewhere — but don't be surprised by the 403, and don't burn extra retries on it the way the
+very first run (`rags`) did before this pattern was known.

@@ -1,3 +1,4 @@
+import json
 import subprocess
 import uuid
 
@@ -111,3 +112,19 @@ def test_topics_in_the_same_category_nest_under_one_shared_category_issue(
     finally:
         _close_test_issue(store, first_id)
         _close_test_issue(store, second_id)
+
+
+def test_post_category_rollup_comments_on_the_real_category_issue(store: GitHubIssuesStore):
+    summary = f"rollup check {uuid.uuid4().hex[:8]}"
+
+    store.post_category_rollup("test-category", summary)
+
+    category_issue_number = store._find_or_create_category_issue("test-category")
+    result = subprocess.run(
+        ["gh", "issue", "view", str(category_issue_number), "--repo", REPO, "--json", "comments"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    comments = [c["body"] for c in json.loads(result.stdout)["comments"]]
+    assert summary in comments

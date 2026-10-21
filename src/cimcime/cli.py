@@ -4,11 +4,14 @@ import argparse
 import json
 import sys
 
+from cimcime.roadmap import DEFAULT_RESEARCH_DOC_PATH, expected_topics
 from cimcime.state_store import (
     GitHubIssuesStore,
+    Phase,
     StateStore,
     TopicRecord,
     TopicStatus,
+    category_breakdown,
     summarize_category,
 )
 
@@ -30,11 +33,21 @@ def build_parser() -> argparse.ArgumentParser:
     add_finding.add_argument("topic_id")
     add_finding.add_argument("finding")
 
+    flag_needs_better_sources = subparsers.add_parser("flag-needs-better-sources")
+    flag_needs_better_sources.add_argument("topic_id")
+
     category_status = subparsers.add_parser("category-status")
     category_status.add_argument("category")
 
     category_rollup = subparsers.add_parser("category-rollup")
     category_rollup.add_argument("category")
+
+    subparsers.add_parser("phase-check")
+
+    subparsers.add_parser("get-phase")
+
+    set_phase = subparsers.add_parser("set-phase")
+    set_phase.add_argument("phase", choices=[phase.value for phase in Phase])
 
     return parser
 
@@ -49,6 +62,10 @@ def _handle_update_status(store: StateStore, args: argparse.Namespace) -> dict:
 
 def _handle_add_finding(store: StateStore, args: argparse.Namespace) -> dict:
     return _topic_to_dict(store.add_finding(args.topic_id, args.finding))
+
+
+def _handle_flag_needs_better_sources(store: StateStore, args: argparse.Namespace) -> dict:
+    return _topic_to_dict(store.flag_needs_better_sources(args.topic_id))
 
 
 def _handle_category_status(store: StateStore, args: argparse.Namespace) -> dict:
@@ -74,12 +91,35 @@ def _category_tally(store: StateStore, category: str) -> dict:
     }
 
 
+def _handle_phase_check(store: StateStore, args: argparse.Namespace) -> dict:
+    """Read-only: checks Learning Phase completion against the real roadmap research doc's
+    expected topic roster, by identity not just count (ADR-0007: needs-better-sources counts
+    as settled). Builds on the same `category_breakdown` `is_learning_phase_complete` uses, so
+    the two can't drift."""
+    breakdown = category_breakdown(store, expected_topics(DEFAULT_RESEARCH_DOC_PATH))
+    complete = all(not category["unsettled_topic_ids"] for category in breakdown.values())
+    return {"complete": complete, "breakdown": breakdown}
+
+
+def _handle_get_phase(store: StateStore, args: argparse.Namespace) -> dict:
+    return {"phase": store.get_phase().value}
+
+
+def _handle_set_phase(store: StateStore, args: argparse.Namespace) -> dict:
+    store.set_phase(Phase(args.phase))
+    return {"phase": store.get_phase().value}
+
+
 _HANDLERS = {
     "get-topic": _handle_get_topic,
     "update-status": _handle_update_status,
     "add-finding": _handle_add_finding,
+    "flag-needs-better-sources": _handle_flag_needs_better_sources,
     "category-status": _handle_category_status,
     "category-rollup": _handle_category_rollup,
+    "phase-check": _handle_phase_check,
+    "get-phase": _handle_get_phase,
+    "set-phase": _handle_set_phase,
 }
 
 
@@ -96,6 +136,7 @@ def _topic_to_dict(record: TopicRecord) -> dict:
         "status": record.status.value,
         "resources": list(record.resources),
         "findings": list(record.findings),
+        "needs_better_sources": record.needs_better_sources,
     }
 
 

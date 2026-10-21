@@ -4,7 +4,7 @@ import uuid
 
 import pytest
 
-from cimcime.state_store import GitHubIssuesStore, TopicStatus
+from cimcime.state_store import GitHubIssuesStore, Phase, TopicStatus
 
 pytestmark = pytest.mark.integration
 
@@ -128,3 +128,39 @@ def test_post_category_rollup_comments_on_the_real_category_issue(store: GitHubI
     )
     comments = [c["body"] for c in json.loads(result.stdout)["comments"]]
     assert summary in comments
+
+
+def test_phase_round_trips_against_the_real_system_issue(store: GitHubIssuesStore):
+    # This is real, global, persistent state for this repo - not a scratch fixture - so leave it
+    # exactly as found (this repo is genuinely still in its real Learning Phase) rather than
+    # leaking a test-induced phase change into production state.
+    original = store.get_phase()
+    try:
+        store.set_phase(Phase.RUNTIME)
+        assert store.get_phase() == Phase.RUNTIME
+
+        store.set_phase(Phase.LEARNING)
+        assert store.get_phase() == Phase.LEARNING
+    finally:
+        store.set_phase(original)
+
+
+def test_flag_needs_better_sources_sets_the_real_label(
+    store: GitHubIssuesStore, topic_id: str
+):
+    try:
+        store.create_topic(
+            topic_id=topic_id,
+            category="test-category",
+            title=f"[integration test] {topic_id}",
+            resources=[],
+        )
+
+        flagged = store.flag_needs_better_sources(topic_id)
+
+        assert flagged.needs_better_sources is True
+        assert flagged.status == TopicStatus.NEEDS_RESEARCH
+        reread = store.get_topic(topic_id)
+        assert reread.needs_better_sources is True
+    finally:
+        _close_test_issue(store, topic_id)

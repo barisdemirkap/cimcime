@@ -3,7 +3,7 @@ import json
 import pytest
 
 from cimcime.cli import run
-from cimcime.state_store import InMemoryStore
+from cimcime.state_store import InMemoryStore, Phase, TopicStatus
 
 
 @pytest.fixture
@@ -32,6 +32,16 @@ def test_get_topic_prints_the_current_record_as_json(store: InMemoryStore):
 def test_get_topic_on_an_unknown_topic_raises(store: InMemoryStore):
     with pytest.raises(ValueError):
         run(["get-topic", "does-not-exist"], store)
+
+
+def test_get_topic_reports_needs_better_sources(store: InMemoryStore):
+    assert json.loads(run(["get-topic", "rag"], store))["needs_better_sources"] is False
+
+
+def test_flag_needs_better_sources_sets_the_flag(store: InMemoryStore):
+    output = run(["flag-needs-better-sources", "rag"], store)
+
+    assert json.loads(output)["needs_better_sources"] is True
 
 
 def test_update_status_changes_the_topic_status(store: InMemoryStore):
@@ -78,3 +88,46 @@ def test_category_rollup_posts_the_same_summary_category_status_would_report(
 
     assert rollup_result == status_result
     assert store.posted_rollups["ai-llm-engineering"] == [status_result["summary"]]
+
+
+def test_phase_check_reports_per_category_breakdown_against_a_fake_roster(
+    store: InMemoryStore, monkeypatch
+):
+    store.update_status("rag", TopicStatus.RESEARCHED)
+    monkeypatch.setattr(
+        "cimcime.cli.expected_topics", lambda path: {"ai-llm-engineering": {"rag"}}
+    )
+
+    output = run(["phase-check"], store)
+
+    result = json.loads(output)
+    assert result["complete"] is True
+    assert result["breakdown"]["ai-llm-engineering"] == {
+        "expected": 1,
+        "settled": 1,
+        "unsettled_topic_ids": [],
+    }
+
+
+def test_phase_check_is_incomplete_when_a_category_is_short(store: InMemoryStore, monkeypatch):
+    monkeypatch.setattr(
+        "cimcime.cli.expected_topics",
+        lambda path: {"ai-llm-engineering": {"rag", "mcp", "multi-agents", "x", "y"}},
+    )
+
+    result = json.loads(run(["phase-check"], store))
+
+    assert result["complete"] is False
+    assert result["breakdown"]["ai-llm-engineering"]["expected"] == 5
+    assert result["breakdown"]["ai-llm-engineering"]["settled"] == 0
+
+
+def test_get_phase_defaults_to_learning(store: InMemoryStore):
+    assert json.loads(run(["get-phase"], store))["phase"] == "learning"
+
+
+def test_set_phase_changes_it(store: InMemoryStore):
+    output = run(["set-phase", "runtime"], store)
+
+    assert json.loads(output)["phase"] == "runtime"
+    assert json.loads(run(["get-phase"], store))["phase"] == "runtime"

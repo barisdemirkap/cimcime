@@ -14,6 +14,11 @@ class TopicStatus(str, Enum):
     RESEARCHED = "researched"
 
 
+class Phase(str, Enum):
+    LEARNING = "learning"
+    RUNTIME = "runtime"
+
+
 @dataclass(frozen=True)
 class TopicRecord:
     topic_id: str
@@ -22,6 +27,7 @@ class TopicRecord:
     status: TopicStatus
     resources: tuple[str, ...] = ()
     findings: tuple[str, ...] = ()
+    needs_better_sources: bool = False
 
 
 def summarize_category(topics: Sequence[TopicRecord]) -> str:
@@ -32,6 +38,47 @@ def summarize_category(topics: Sequence[TopicRecord]) -> str:
     researched = counts[TopicStatus.RESEARCHED.value]
     breakdown = ", ".join(f"{count} {status}" for status, count in sorted(counts.items()))
     return f"{researched}/{total} topics researched" + (f" ({breakdown})" if breakdown else "")
+
+
+def is_settled(topic: TopicRecord) -> bool:
+    """A topic that's either genuinely researched or has an acknowledged, attempted-but-bad
+    source set (ADR-0007) - as opposed to one that's never been touched at all."""
+    return topic.status == TopicStatus.RESEARCHED or topic.needs_better_sources
+
+
+def category_breakdown(
+    store: StateStore, expected_topics_by_category: dict[str, set[str]]
+) -> dict[str, dict]:
+    """Per-category {expected, settled, unsettled_topic_ids} - the one shape both
+    `is_learning_phase_complete` and the CLI's `phase-check` build on, so they can't drift.
+    Checks topic *identity*, not just a count: a mislabeled or stray topic can't make a category
+    look complete while the real expected topics (e.g. from `cimcime.roadmap.expected_topics`)
+    are still untouched."""
+    breakdown: dict[str, dict] = {}
+    for category, expected_ids in expected_topics_by_category.items():
+        tracked = {topic.topic_id: topic for topic in store.query_by_category(category)}
+        unsettled = {
+            topic_id
+            for topic_id in expected_ids
+            if topic_id not in tracked or not is_settled(tracked[topic_id])
+        }
+        breakdown[category] = {
+            "expected": len(expected_ids),
+            "settled": len(expected_ids) - len(unsettled),
+            "unsettled_topic_ids": sorted(unsettled),
+        }
+    return breakdown
+
+
+def is_learning_phase_complete(
+    store: StateStore, expected_topics_by_category: dict[str, set[str]]
+) -> bool:
+    """True once every category in `expected_topics_by_category` has every one of its expected
+    topic_ids settled. Pass the TRUE expected roster (e.g. `cimcime.roadmap.expected_topics`),
+    not just whatever's currently tracked - otherwise a category with zero topics seeded yet
+    would vacuously look complete."""
+    breakdown = category_breakdown(store, expected_topics_by_category)
+    return all(not category["unsettled_topic_ids"] for category in breakdown.values())
 
 
 class StateStore(Protocol):
@@ -51,6 +98,12 @@ class StateStore(Protocol):
 
     def post_category_rollup(self, category: str, summary: str) -> None: ...
 
+    def flag_needs_better_sources(self, topic_id: str) -> TopicRecord: ...
+
+    def get_phase(self) -> Phase: ...
+
+    def set_phase(self, phase: Phase) -> None: ...
+
 
 class InMemoryStore:
     """Fake StateStore for tests: no I/O, same contract as GitHubIssuesStore."""
@@ -58,6 +111,7 @@ class InMemoryStore:
     def __init__(self) -> None:
         self._topics: dict[str, TopicRecord] = {}
         self.posted_rollups: dict[str, list[str]] = {}
+        self._phase: Phase = Phase.LEARNING
 
     def create_topic(
         self, topic_id: str, category: str, title: str, resources: Sequence[str]
@@ -99,6 +153,18 @@ class InMemoryStore:
     def post_category_rollup(self, category: str, summary: str) -> None:
         self.posted_rollups.setdefault(category, []).append(summary)
 
+    def flag_needs_better_sources(self, topic_id: str) -> TopicRecord:
+        record = self._require(topic_id)
+        updated = replace(record, needs_better_sources=True)
+        self._topics[topic_id] = updated
+        return updated
+
+    def get_phase(self) -> Phase:
+        return self._phase
+
+    def set_phase(self, phase: Phase) -> None:
+        self._phase = phase
+
     def _require(self, topic_id: str) -> TopicRecord:
         try:
             return self._topics[topic_id]
@@ -112,6 +178,12 @@ _STATUS_LABELS: dict[TopicStatus, str] = {
 }
 _CATEGORY_LABEL_PREFIX = "fde:category:"
 _CATEGORY_MAP_LABEL = "fde:category-map"
+_NEEDS_BETTER_SOURCES_LABEL = "fde:needs-better-sources"
+_PHASE_LABELS: dict[Phase, str] = {
+    Phase.LEARNING: "fde:phase:learning",
+    Phase.RUNTIME: "fde:phase:runtime",
+}
+_PHASE_ISSUE_MARKER = "<!-- cimcime:system=phase -->"
 _TOPIC_MARKER_RE = re.compile(r"<!-- cimcime:topic_id=(\S+) -->")
 _RESOURCE_LINE_RE = re.compile(r"^- (.+)$", re.MULTILINE)
 
@@ -223,6 +295,31 @@ class GitHubIssuesStore:
         number = self._find_or_create_category_issue(category)
         self._run(["issue", "comment", str(number), "--body", summary])
 
+    def flag_needs_better_sources(self, topic_id: str) -> TopicRecord:
+        number = self._require_issue_number(topic_id)
+        self._run(["issue", "edit", str(number), "--add-label", _NEEDS_BETTER_SOURCES_LABEL])
+        return self._get(topic_id)
+
+    def get_phase(self) -> Phase:
+        return self._read_phase(self._find_or_create_phase_issue())
+
+    def set_phase(self, phase: Phase) -> None:
+        number = self._find_or_create_phase_issue()
+        current = self._read_phase(number)
+        if current == phase:
+            return
+        self._run(
+            [
+                "issue",
+                "edit",
+                str(number),
+                "--remove-label",
+                _PHASE_LABELS[current],
+                "--add-label",
+                _PHASE_LABELS[phase],
+            ]
+        )
+
     # -- internals --
 
     def _run(self, args: list[str]) -> str:
@@ -268,24 +365,41 @@ class GitHubIssuesStore:
         return None
 
     def _find_or_create_category_issue(self, category: str) -> int:
-        marker = _category_marker(category)
+        return self._find_or_create_system_issue(
+            marker=_category_marker(category),
+            title=f"[category] {category}",
+            body=f"Tracks every topic in the '{category}' category.",
+            label=_CATEGORY_MAP_LABEL,
+        )
+
+    def _find_or_create_phase_issue(self) -> int:
+        return self._find_or_create_system_issue(
+            marker=_PHASE_ISSUE_MARKER,
+            title="[system] Cimcime phase",
+            body="Tracks whether Cimcime is in the Learning Phase or the Runtime Phase "
+            "(ADR-0003). Starts in Learning.",
+            label=_PHASE_LABELS[Phase.LEARNING],
+        )
+
+    def _find_or_create_system_issue(self, marker: str, title: str, body: str, label: str) -> int:
+        """Shared shape behind every lazily-created, singleton tracking issue (a category's
+        map issue, the phase issue): found by a body marker, created with one label if missing."""
         for issue in self._list_all():
             if marker in issue["body"]:
                 return issue["number"]
 
         url = self._run(
-            [
-                "issue",
-                "create",
-                "--title",
-                f"[category] {category}",
-                "--body",
-                f"{marker}\n\nTracks every topic in the '{category}' category.",
-                "--label",
-                _CATEGORY_MAP_LABEL,
-            ]
+            ["issue", "create", "--title", title, "--body", f"{marker}\n\n{body}", "--label", label]
         )
         return int(url.strip().rsplit("/", 1)[-1])
+
+    def _read_phase(self, number: int) -> Phase:
+        out = self._run(["issue", "view", str(number), "--json", "labels"])
+        labels = [label["name"] for label in json.loads(out)["labels"]]
+        for phase, label in _PHASE_LABELS.items():
+            if label in labels:
+                return phase
+        raise ValueError(f"phase issue #{number} has no recognized phase label: {labels!r}")
 
     def _require_issue_number(self, topic_id: str) -> int:
         number = self._find_issue_number(topic_id)
@@ -310,4 +424,5 @@ class GitHubIssuesStore:
             status=_status_from_labels(labels),
             resources=_parse_resources(issue["body"]),
             findings=tuple(comment["body"] for comment in issue["comments"]),
+            needs_better_sources=_NEEDS_BETTER_SOURCES_LABEL in labels,
         )

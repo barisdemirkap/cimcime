@@ -1,6 +1,6 @@
 import pytest
 
-from cimcime.state_store import InMemoryStore, TopicStatus
+from cimcime.state_store import InMemoryStore, Phase, TopicStatus
 
 
 @pytest.fixture
@@ -69,6 +69,32 @@ def test_query_by_category_only_returns_matching_topics(store: InMemoryStore):
 
     [topic] = store.query_by_category("ai-llm-engineering")
     assert topic.topic_id == "rag"
+
+
+def test_phase_defaults_to_learning(store: InMemoryStore):
+    assert store.get_phase() == Phase.LEARNING
+
+
+def test_set_phase_changes_what_get_phase_returns(store: InMemoryStore):
+    store.set_phase(Phase.RUNTIME)
+
+    assert store.get_phase() == Phase.RUNTIME
+
+
+def test_new_topic_does_not_need_better_sources_by_default(store: InMemoryStore):
+    store.create_topic(topic_id="rag", category="ai-llm-engineering", title="RAG", resources=[])
+
+    topic = store.get_topic("rag")
+    assert topic.needs_better_sources is False
+
+
+def test_flag_needs_better_sources_sets_the_flag_without_changing_status(store: InMemoryStore):
+    store.create_topic(topic_id="rag", category="ai-llm-engineering", title="RAG", resources=[])
+
+    topic = store.flag_needs_better_sources("rag")
+
+    assert topic.needs_better_sources is True
+    assert topic.status == TopicStatus.NEEDS_RESEARCH
 
 
 def test_post_category_rollup_is_recorded_for_that_category(store: InMemoryStore):

@@ -65,11 +65,10 @@ below with `uv run python -m cimcime.cli <command>` from this repo's root.
 5. **Only now, mark it done — unless nothing was fetchable.** If at least one resource was
    actually read, run `update-status <topic_id> researched`, after the study file is written and
    committed to disk, never before. If **none** of the resources were fetchable (per ADR-0007),
-   do not mark it researched: leave it at `needs_research` and add the `fde:needs-better-sources`
-   label instead (`gh issue edit <number> --add-label fde:needs-better-sources` — there's no CLI
-   command for this yet, it's a direct `gh` call). This is a recurring, already-decided case, not
-   one to re-escalate each time it happens — only escalate a *new* kind of ambiguity you haven't
-   seen covered here or in `docs/adr/`.
+   do not mark it researched: run `flag-needs-better-sources <topic_id>` instead, leaving it at
+   `needs_research`. This is a recurring, already-decided case, not one to re-escalate each time
+   it happens — only escalate a *new* kind of ambiguity you haven't seen covered here or in
+   `docs/adr/`.
 
 6. **Report back** what you found: the study file's path, which sources were and weren't
    readable, and anything you flagged for the glossary.

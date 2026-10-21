@@ -68,3 +68,13 @@ The pluggable inference layer an agent calls into to do its reasoning. Claude, v
 the default and only backend in the initial build. A self-hosted Hermes model (NousResearch, run
 locally via Ollama) is a planned optional secondary backend for low-stakes, non-critical subtasks —
 deferred until after the core product is finished.
+
+## Telegram bridge
+
+Cimcime's human-interface channel in Runtime Phase (per ADR-0005), implemented via Claude
+Code's built-in `telegram` channel plugin rather than custom bridge code (ADR-0009). Delivers
+inbound Telegram messages as channel events into a running, allowlisted Claude Code session
+(scoped to the user's own Telegram ID) and sends outbound notifications — approval-gate events,
+milestones — back through the same channel. Requires a persistent `claude --channels` process
+on the Mac Mini; the bot token lives in the plugin's own `~/.claude/channels/telegram/.env`,
+not this repo's `secrets/`.

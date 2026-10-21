@@ -20,6 +20,13 @@ A subagent scoped to exactly one roadmap.sh topic (~97 total, one per topic in
 topic: reading every linked resource, writing findings to that topic's study file, and holding its
 own tracking issue state.
 
+## Needs-better-sources
+
+A topic whose linked resources turned out to be entirely unfetchable (per ADR-0007) — distinct
+from a plain `needs-research` topic, which just hasn't been attempted yet. Tagged
+`fde:needs-better-sources`, stays at `needs-research` status rather than being marked
+`researched` on an empty study file.
+
 ## Approval gate
 
 An explicit point requiring the user's sign-off before Cimcime proceeds, regardless of its general

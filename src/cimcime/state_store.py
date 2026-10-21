@@ -28,6 +28,8 @@ class StateStore(Protocol):
         self, topic_id: str, category: str, title: str, resources: Sequence[str]
     ) -> TopicRecord: ...
 
+    def get_topic(self, topic_id: str) -> TopicRecord: ...
+
     def update_status(self, topic_id: str, status: TopicStatus) -> TopicRecord: ...
 
     def add_finding(self, topic_id: str, finding: str) -> TopicRecord: ...
@@ -58,6 +60,9 @@ class InMemoryStore:
         )
         self._topics[topic_id] = record
         return record
+
+    def get_topic(self, topic_id: str) -> TopicRecord:
+        return self._require(topic_id)
 
     def update_status(self, topic_id: str, status: TopicStatus) -> TopicRecord:
         record = self._require(topic_id)
@@ -165,6 +170,9 @@ class GitHubIssuesStore:
                 str(parent_number),
             ]
         )
+        return self._get(topic_id)
+
+    def get_topic(self, topic_id: str) -> TopicRecord:
         return self._get(topic_id)
 
     def update_status(self, topic_id: str, status: TopicStatus) -> TopicRecord:

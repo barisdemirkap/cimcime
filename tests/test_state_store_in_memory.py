@@ -30,6 +30,18 @@ def test_creating_a_duplicate_topic_id_raises(store: InMemoryStore):
         store.create_topic(topic_id="rag", category="ai-llm-engineering", title="RAG", resources=[])
 
 
+def test_get_topic_returns_the_current_record(store: InMemoryStore):
+    store.create_topic(topic_id="rag", category="ai-llm-engineering", title="RAG", resources=[])
+
+    topic = store.get_topic("rag")
+    assert topic.topic_id == "rag"
+
+
+def test_get_topic_on_an_unknown_topic_raises(store: InMemoryStore):
+    with pytest.raises(ValueError):
+        store.get_topic("does-not-exist")
+
+
 def test_update_status_moves_topic_between_status_queries(store: InMemoryStore):
     store.create_topic(topic_id="rag", category="ai-llm-engineering", title="RAG", resources=[])
 

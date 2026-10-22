@@ -13,8 +13,13 @@ it does no unprompted background work now, and acts only when invoked.
 
 The Telegram bridge (ADR-0009, Cimcime's Runtime-Phase human interface) is partially set up:
 the `telegram` channel plugin is installed, but configuration/pairing/live verification are
-blocked on the user generating a fresh bot token and knowing their own Telegram user ID — see
-issue #7. Until then, invoke Cimcime directly in a Claude Code session.
+blocked on the user generating a fresh bot token — see issue #7. Until then, invoke Cimcime
+directly in a Claude Code session.
+
+To finish setup once you have a bot token, run `scripts/telegram-setup-wizard.sh` on the Mac
+Mini — it walks through creating the bot via @BotFather, the Claude Code commands to configure
+and pair the plugin, and installing the always-on `launchd` service
+(`scripts/install_telegram_launchd.sh`) so the bridge survives a reboot.
 
 ## Using it
 

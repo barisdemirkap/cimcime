@@ -93,22 +93,21 @@ def test_topics_in_the_same_category_nest_under_one_shared_category_issue(
         )
 
         category_issue_number = store._find_or_create_category_issue("test-category")
-        result = subprocess.run(
-            [
-                "gh",
-                "api",
-                f"repos/{REPO}/issues/{category_issue_number}/sub_issues",
-                "--jq",
-                ".[].number",
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        child_numbers = {int(n) for n in result.stdout.split()}
 
-        assert store._find_issue_number(first_id) in child_numbers
-        assert store._find_issue_number(second_id) in child_numbers
+        # Read each child's own `parent` field rather than the parent's `sub_issues`
+        # listing: `gh issue create --parent` sets the relationship atomically with
+        # creation, but the parent's own sub_issues listing can lag right after a write
+        # (the same general eventual-consistency class documented on `_query` above) —
+        # checking from the child's side avoids relying on that lagging derived view.
+        for topic_id in (first_id, second_id):
+            number = store._require_issue_number(topic_id)
+            result = subprocess.run(
+                ["gh", "issue", "view", str(number), "--repo", REPO, "--json", "parent"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            assert json.loads(result.stdout)["parent"]["number"] == category_issue_number
     finally:
         _close_test_issue(store, first_id)
         _close_test_issue(store, second_id)

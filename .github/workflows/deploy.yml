@@ -1,0 +1,20 @@
+name: deploy
+
+# Self-hosted runner only - deliberately NOT triggered by pull_request, only by a
+# push to main (which already requires repo write access). This is the one safe
+# trigger for a self-hosted job on a repo that could otherwise accept outside
+# contributions: a fork's pull_request can never reach this workflow.
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy-telegram-bridge:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          python-version: "3.11"
+      - run: uv run pytest -q
+      - run: ./scripts/install_telegram_launchd.sh

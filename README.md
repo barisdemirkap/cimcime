@@ -21,6 +21,13 @@ Mini — it walks through creating the bot via @BotFather, the Claude Code comma
 and pair the plugin, and installing the always-on `launchd` service
 (`scripts/install_telegram_launchd.sh`) so the bridge survives a reboot.
 
+This repo is **private** (made private specifically to run a self-hosted GitHub Actions
+runner safely — public repos + self-hosted runners are a known risk, since a fork's pull
+request could otherwise execute on the runner's host). A self-hosted runner on the Mac Mini
+handles continuous deployment (`.github/workflows/deploy.yml`): on every push to `main`, it
+re-runs the fast test suite and reinstalls the Telegram bridge's `launchd` service so it
+always reflects the latest code.
+
 ## Using it
 
 Invoke the **`cimcime`** agent in a Claude Code session in this repo. It checks which phase
@@ -41,7 +48,7 @@ Useful CLI commands directly (`uv run python -m cimcime.cli <command>`):
 
 - `GLOSSARY.md` — domain vocabulary (Cimcime, category-agent, topic-agent, Approval gate,
   Learning/Runtime Phase, State store, Model backend, Telegram bridge).
-- `docs/adr/0001`–`0009` — every architecture decision and why it was made, in order.
+- `docs/adr/0001`–`0011` — every architecture decision and why it was made, in order.
 - `docs/research/forward-deployed-engineer-roadmap.md` — the full 97-topic curriculum index.
 - `docs/topics/<category>/<topic>.md` — one study file per researched topic.
 - `src/cimcime/` — the Python package (state store, approval gate, roadmap parser, CLI,
@@ -50,7 +57,12 @@ Useful CLI commands directly (`uv run python -m cimcime.cli <command>`):
   topic-agent.
 - `tests/` — `uv run pytest -q` runs the fast suite; integration tests (live GitHub) are
   excluded by default, run with `uv run pytest -m integration`.
-- `.github/workflows/tests.yml` — CI runs the fast suite on every push/PR to `main`.
+- `.github/workflows/tests.yml` — CI runs the fast suite on every push/PR to `main`, on
+  GitHub's own hosted runners.
+- `.github/workflows/deploy.yml` — on push to `main` only (never `pull_request` — this repo
+  is private, but that trigger restriction is the actual safety boundary for a self-hosted
+  runner), reinstalls/restarts the Telegram bridge's `launchd` service on the Mac Mini via a
+  self-hosted runner registered on that machine.
 - `scripts/` — `telegram-setup-wizard.sh` (plus its launchd plist and install script) walks
   through the remaining Telegram bridge setup once a bot token exists.
 

@@ -50,6 +50,9 @@ Useful CLI commands directly (`uv run python -m cimcime.cli <command>`):
   topic-agent.
 - `tests/` — `uv run pytest -q` runs the fast suite; integration tests (live GitHub) are
   excluded by default, run with `uv run pytest -m integration`.
+- `.github/workflows/tests.yml` — CI runs the fast suite on every push/PR to `main`.
+- `scripts/` — `telegram-setup-wizard.sh` (plus its launchd plist and install script) walks
+  through the remaining Telegram bridge setup once a bot token exists.
 
 ## Design principles, in short
 

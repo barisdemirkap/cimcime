@@ -10,6 +10,10 @@
     <string>plugin:telegram@claude-plugins-official</string>
   </array>
   <key>WorkingDirectory</key><string>REPO_PATH</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>BUN_DIR:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>StandardOutPath</key><string>REPO_PATH/logs/launchd-telegram-channel.out</string>

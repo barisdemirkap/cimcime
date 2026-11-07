@@ -9,13 +9,12 @@
          (true under launchd, which redirects StandardOutPath to a file); the channels
          flag then crash loops on "Input must be provided either through stdin or as a
          prompt argument when using print mode". /usr/bin/script allocates a real pty
-         so claude sees a TTY and starts its normal persistent session instead. -->
-    <string>/usr/bin/script</string>
-    <string>-q</string>
-    <string>/dev/null</string>
-    <string>CLAUDE_BIN_PATH</string>
-    <string>--channels</string>
-    <string>plugin:telegram@claude-plugins-official</string>
+         so claude sees a TTY and starts its normal persistent session instead.
+         launchd gives stdin /dev/null, which script forwards as EOF (^D) and makes claude exit,
+         so stdin is fed from a never-ending `tail -f /dev/null` pipe. -->
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>tail -f /dev/null | /usr/bin/script -q /dev/null CLAUDE_BIN_PATH --channels plugin:telegram@claude-plugins-official --append-system-prompt 'Messages arriving as &lt;channel source="telegram"&gt; are from the user on Telegram, who cannot see this terminal. ALWAYS answer them by calling the telegram reply tool with the chat_id from the tag; plain text output is never delivered.'</string>
   </array>
   <key>WorkingDirectory</key><string>REPO_PATH</string>
   <key>EnvironmentVariables</key>

@@ -26,6 +26,22 @@ if [[ -z "$BUN_BIN" ]]; then
 fi
 BUN_DIR="$(dirname "$BUN_BIN")"
 
+# claude shows a one-time "do you trust this folder?" dialog the first time it runs
+# in a directory, and nothing can answer it inside launchd (no interactive stdin to
+# type "Yes" into, even with the script(1) pty workaround below - it would just hang
+# forever and KeepAlive would never see it exit). The answer persists per-directory
+# in ~/.claude.json once given, so require it to already be given before installing.
+if ! python3 -c "
+import json, sys
+d = json.load(open('$HOME/.claude.json'))
+sys.exit(0 if d.get('projects', {}).get('$REPO', {}).get('hasTrustDialogAccepted') else 1)
+" 2>/dev/null; then
+  echo "error: this folder isn't trusted yet. Run 'claude' once in $REPO in a normal" >&2
+  echo "terminal, answer \"Yes, I trust this folder\" at the prompt, then exit (Ctrl-D)" >&2
+  echo "and re-run this script." >&2
+  exit 1
+fi
+
 mkdir -p "$REPO/logs" ~/Library/LaunchAgents
 DEST=~/Library/LaunchAgents/com.cimcime.telegram-channel.plist
 sed -e "s#REPO_PATH#$REPO#g" -e "s#CLAUDE_BIN_PATH#$CLAUDE_BIN#g" -e "s#BUN_DIR#$BUN_DIR#g" \

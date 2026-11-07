@@ -5,6 +5,14 @@
   <key>Label</key><string>com.cimcime.telegram-channel</string>
   <key>ProgramArguments</key>
   <array>
+    <!-- claude switches to non interactive "print" mode whenever stdout isn't a TTY
+         (true under launchd, which redirects StandardOutPath to a file); the channels
+         flag then crash loops on "Input must be provided either through stdin or as a
+         prompt argument when using print mode". /usr/bin/script allocates a real pty
+         so claude sees a TTY and starts its normal persistent session instead. -->
+    <string>/usr/bin/script</string>
+    <string>-q</string>
+    <string>/dev/null</string>
     <string>CLAUDE_BIN_PATH</string>
     <string>--channels</string>
     <string>plugin:telegram@claude-plugins-official</string>

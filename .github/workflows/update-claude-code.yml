@@ -1,0 +1,22 @@
+name: update-claude-code
+
+# Keeps the Mac Mini's Claude Code cask current (the user's own request: "arada bir
+# brew upgrade claude-code calistirsin"). Runs on the self-hosted runner, same host
+# that runs the always-on telegram-channel launchd service - after upgrading, that
+# service is restarted so it actually picks up the new binary (the symlink path is
+# stable across cask versions, but a running process keeps the old one mapped until
+# relaunched). workflow_dispatch allows a manual run too.
+on:
+  schedule:
+    - cron: "0 6 * * *" # once daily
+  workflow_dispatch: {}
+
+jobs:
+  update:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upgrade the claude-code cask
+        run: brew upgrade --cask claude-code || echo "already up to date"
+      - name: Restart the telegram-channel service so it picks up the new binary
+        run: ./scripts/install_telegram_launchd.sh

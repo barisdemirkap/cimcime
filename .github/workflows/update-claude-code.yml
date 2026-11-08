@@ -1,10 +1,12 @@
 name: update-claude-code
 
-# Keeps the Mac Mini's Claude Code cask current (the user's own request: "arada bir
-# brew upgrade claude-code calistirsin"). Runs on the self-hosted runner, same host
-# that runs the always-on telegram-channel launchd service - after upgrading, that
-# service is restarted so it actually picks up the new binary (the symlink path is
-# stable across cask versions, but a running process keeps the old one mapped until
+# Keeps the Mac Mini's tooling current, once a day, unattended: Homebrew formulae and casks
+# (claude-code included - the user's own request: "arada bir brew upgrade claude-code
+# calistirsin", later widened to all of brew) and every installed Claude Code plugin. Agent
+# model versions need no bump: the agents use the `haiku` / `inherit` aliases, which already
+# resolve to the latest model. Runs on the self-hosted runner, same host as the always-on
+# telegram-channel launchd service - afterwards that service is restarted so it actually
+# picks up the new binary/plugin (a running process keeps the old one mapped until
 # relaunched). workflow_dispatch allows a manual run too.
 on:
   schedule:
@@ -18,10 +20,22 @@ concurrency:
 jobs:
   update:
     runs-on: self-hosted
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Upgrade the claude-code cask
-        run: brew upgrade --cask claude-code || echo "already up to date"
+      - name: Upgrade Homebrew formulae and casks
+        run: |
+          brew update
+          brew upgrade || echo "brew upgrade reported errors; continuing"
+          brew cleanup || true
+      - name: Update Claude Code plugins
+        run: |
+          claude plugin list | sed -n 's/^ *❯ //p' | while read -r plugin; do
+            claude plugin update "$plugin" || echo "could not update $plugin"
+          done
       - name: Restart the telegram-channel service so it picks up the new binary
         run: ./scripts/install_telegram_launchd.sh
+      - name: Verify the service is actually running
+        run: |
+          sleep 15
+          launchctl list com.cimcime.telegram-channel | grep -q '"PID"' || { echo "telegram-channel has no running process after the update" >&2; exit 1; }

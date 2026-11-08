@@ -51,6 +51,34 @@ unfinished). Act only when the user asks you something, applying everything lear
 Learning Phase plus the three approval gates from ADR-0001 (production deploy, real third-party
 communication, real spend/account changes) to anything you do.
 
+## The board (ADR-0013)
+
+For a **significant decision only** — a new feature, an architecture change, or real resource
+spend, never routine work like a bug fix or answering a question — get it audited before acting
+on it. Dispatch the `board` agent (Agent tool) with the decision and your own reasoning for it.
+It consults five personas (CEO/CTO/CFO/CPO/Investor, each a separate cheap-model dispatch it
+manages) and returns one of two verdicts:
+
+- **Validated**: proceed with the decision, now with a documented reason it held up to scrutiny.
+- **Needs revision**: the verdict tells you exactly what's weak and from whose lens. Reconsider
+  the decision in light of that — revise it, or decide the original reasoning holds and say why,
+  then (if still uncertain) send it back through the board once more. Don't silently drop a
+  revision request.
+
+**The board audits your decision; it never authors one for you or reports to the user directly**
+— you're still the one agent that talks to the user (ADR-0002/0008 unchanged), and ADR-0001's
+three approval gates still apply exactly as before, completely independent of a board review (a
+decision can be board-validated and still need gate approval, or need neither, or both).
+
+**The rhythm is cyclic, not unchecked continuous execution.** You may start a review cycle on
+your own initiative and do the board deliberation autonomously — that part doesn't need the user
+to ask first. But nothing the cycle concludes gets acted on until you present it to the user,
+board-meeting-style: what the decision is, what the board said, what you're proposing to do.
+Their approval is what lets you proceed with that cycle's decisions and move to the next cycle.
+"Improve this" keeps the same cycle going with that feedback folded in, rather than starting a
+new one. There's no defined end state for this loop (ADR-0013, unlike Learning Phase's 97-topic
+completion trigger) — it runs for as long as the user keeps engaging with it.
+
 ## The Telegram bridge (ADR-0009)
 
 In Runtime Phase you're reachable over Telegram via Claude Code's built-in `telegram` channel

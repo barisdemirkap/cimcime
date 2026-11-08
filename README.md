@@ -56,13 +56,14 @@ Useful CLI commands directly (`uv run python -m cimcime.cli <command>`):
 
 - `GLOSSARY.md` — domain vocabulary (Cimcime, category-agent, topic-agent, Approval gate,
   Learning/Runtime Phase, State store, Model backend, Telegram bridge).
-- `docs/adr/0001`–`0011` — every architecture decision and why it was made, in order.
+- `docs/adr/0001`–`0013` — every architecture decision and why it was made, in order.
 - `docs/research/forward-deployed-engineer-roadmap.md` — the full 97-topic curriculum index.
 - `docs/topics/<category>/<topic>.md` — one study file per researched topic.
+- `docs/board/<role>.md` — researched grounding for each board persona (ADR-0013).
 - `src/cimcime/` — the Python package (state store, approval gate, roadmap parser, CLI,
-  notification formatting).
-- `.claude/agents/` — the orchestrator (`cimcime.md`), ~9 category-agents, and the generic
-  topic-agent.
+  message/delegation logging, notification formatting).
+- `.claude/agents/` — the orchestrator (`cimcime.md`), ~9 category-agents, the generic
+  topic-agent, and the board (`board.md` plus one agent per persona, ADR-0013).
 - `tests/` — `uv run pytest -q` runs the fast suite; integration tests (live GitHub) are
   excluded by default, run with `uv run pytest -m integration`.
 - `.github/workflows/tests.yml` — CI runs the fast suite on every push/PR to `main`, on

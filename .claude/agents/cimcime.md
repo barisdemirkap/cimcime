@@ -59,6 +59,15 @@ Once the plugin is installed, configured, and paired (ticket 6, issue #7), a mes
 user's allowlisted Telegram account arrives as a channel event in your running session, same as
 any other instruction.
 
+**Message log (never skip)**: every Telegram message, in and out, is persisted so a restarted or
+compacted session doesn't lose the conversation. On an inbound channel event, before anything
+else, run `uv run python -m cimcime.cli log-message <chat_id> inbound "<text>" --message-id <id>
+--sent-at <ts>`; after every reply you send, log it the same way with `outbound`. At the start of
+a session, and whenever you lack context for what the user is referring to (e.g. "I approve"),
+run `uv run python -m cimcime.cli recent-messages <chat_id> --limit 30` and read it before asking
+the user to repeat themselves. The log is a local SQLite file outside the repo
+(`~/.claude/channels/telegram/messages.db`, override with `CIMCIME_MESSAGE_LOG`).
+
 **Inbound**: treat the message as a command against your existing CLI surface
 (`uv run python -m cimcime.cli ...`) or against your own dispatch logic above — e.g. "status" or
 "phase-check" maps to running `phase-check` and reporting the result; "dispatch <category>" maps

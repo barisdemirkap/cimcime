@@ -4,6 +4,7 @@ import argparse
 import json
 import sys
 
+from cimcime.message_log import Direction, MessageLog, default_path
 from cimcime.roadmap import DEFAULT_RESEARCH_DOC_PATH, expected_topics, topic_entries
 from cimcime.state_store import (
     GitHubIssuesStore,
@@ -50,6 +51,17 @@ def build_parser() -> argparse.ArgumentParser:
     set_phase.add_argument("phase", choices=[phase.value for phase in Phase])
 
     subparsers.add_parser("seed")
+
+    log_message = subparsers.add_parser("log-message")
+    log_message.add_argument("chat_id")
+    log_message.add_argument("direction", choices=[d.value for d in Direction])
+    log_message.add_argument("text")
+    log_message.add_argument("--message-id")
+    log_message.add_argument("--sent-at")
+
+    recent_messages = subparsers.add_parser("recent-messages")
+    recent_messages.add_argument("chat_id")
+    recent_messages.add_argument("--limit", type=int, default=20)
 
     return parser
 
@@ -125,6 +137,34 @@ def _handle_seed(store: StateStore, args: argparse.Namespace) -> dict:
     return {"created": created, "skipped": skipped}
 
 
+def _handle_log_message(store: StateStore, args: argparse.Namespace) -> dict:
+    """Appends one Telegram message to the local message log (not the GitHub-backed store)."""
+    MessageLog(default_path()).log(
+        args.chat_id,
+        Direction(args.direction),
+        args.text,
+        message_id=args.message_id,
+        sent_at=args.sent_at,
+    )
+    return {"logged": True}
+
+
+def _handle_recent_messages(store: StateStore, args: argparse.Namespace) -> dict:
+    """Read-only: the last `limit` messages with this chat, oldest first."""
+    messages = MessageLog(default_path()).recent(args.chat_id, args.limit)
+    return {
+        "messages": [
+            {
+                "direction": m.direction.value,
+                "message_id": m.message_id,
+                "sent_at": m.sent_at,
+                "text": m.text,
+            }
+            for m in messages
+        ]
+    }
+
+
 _HANDLERS = {
     "get-topic": _handle_get_topic,
     "update-status": _handle_update_status,
@@ -136,6 +176,8 @@ _HANDLERS = {
     "get-phase": _handle_get_phase,
     "set-phase": _handle_set_phase,
     "seed": _handle_seed,
+    "log-message": _handle_log_message,
+    "recent-messages": _handle_recent_messages,
 }
 
 

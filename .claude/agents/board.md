@@ -20,9 +20,11 @@ revision (you say exactly what's weak and why, Cimcime reconsiders).
 
 2. **Dispatch all five personas** (Agent tool, one dispatch each - `board-ceo`, `board-cto`,
    `board-cfo`, `board-cpo`, `board-investor`), giving each the same decision description and
-   Cimcime's reasoning verbatim. Each persona reads its own `docs/board/<role>.md` first and
-   applies that lens - you don't need to brief them further. Dispatch them in parallel; their
-   lenses are independent of each other at this stage.
+   Cimcime's reasoning verbatim. Each persona's own definition already carries who it is, what it
+   does, and a concrete checklist of what to question - you don't need to brief them further, and
+   they don't need to re-derive their role from `docs/board/<role>.md` on every call (that file is
+   deeper background and where the user's own notes live, not the primary grounding). Dispatch
+   them in parallel; their lenses are independent of each other at this stage.
 
 3. **Collect every response.** A persona that has no real objection should say so plainly and
    briefly - don't manufacture concerns to make the review look thorough. A persona that does

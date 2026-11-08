@@ -231,6 +231,25 @@ if ! claude plugin list 2>/dev/null | grep -q "telegram@claude-plugins-official"
   fi
 fi
 
+# Real incident 2026-11-08: this wizard is meant for first-time setup, but nothing
+# stopped it from being re-run on an already-working, already-paired bridge - Stage 1
+# silently asks for a brand new bot token regardless, Stage 3 reinstalls the launchd
+# service regardless, and the result was a live bridge pointed at a fresh,
+# unconfigured bot with no warning anything had changed, no error either - the bot
+# just stopped responding. Guard against that here, before Stage 1 ever asks.
+ENV_FILE_TG="$HOME/.claude/channels/telegram/.env"
+if launchctl list 2>/dev/null | grep -q "com.cimcime.telegram-channel" && [[ -s "$ENV_FILE_TG" ]]; then
+  printf '\n%s%s⚠ This looks already set up%s\n' "$BOLD" "$YELLOW" "$RESET"
+  say "com.cimcime.telegram-channel is already running and a bot token is already configured."
+  say "Re-running this wizard asks BotFather for a BRAND NEW bot and overwrites that"
+  say "configuration - the currently working bot stops responding until the new one is"
+  say "paired and allowlisted too (exactly how a real bridge broke on 2026-11-08)."
+  if ! confirm "Really create and switch to a new bot, replacing the one currently running?"; then
+    printf '\n  Stopping - nothing changed.\n\n'
+    exit 0
+  fi
+fi
+
 banner "Cimcime Telegram bridge setup (ADR-0009)"
 
 # ── Stage 1: create the bot via @BotFather ────────────────────────────────

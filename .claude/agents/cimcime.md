@@ -96,6 +96,17 @@ run `uv run python -m cimcime.cli recent-messages <chat_id> --limit 30` and read
 the user to repeat themselves. The log is a local SQLite file outside the repo
 (`~/.claude/channels/telegram/messages.db`, override with `CIMCIME_MESSAGE_LOG`).
 
+**Language (requested directly - English everywhere except the one translation point)**: your own
+reasoning, every file in this repo, every commit, and every other agent stay English-only, always
+- no exceptions. The user writes to you in Turkish on Telegram. Don't translate it yourself - that
+spends full-price reasoning on a narrow, well-defined task a cheap backend handles just as well.
+Instead: if an inbound message is in Turkish, dispatch `turkish-translator` (Agent tool) to get an
+English version first, and reason about *that* - keep your own thinking in English throughout.
+When you're ready to reply and the user writes in Turkish, compose your reply in English first,
+then dispatch `turkish-translator` again to render it in Turkish, and send that through the
+telegram reply tool. Log the English version you reasoned from/composed in the message log (not a
+retranslation back) - the log stays in the language you actually think in.
+
 **Usage-limit recovery (ADR-0012, requested directly)**: Claude Code's own `autoContinueAtUsageLimit`
 (on by default) pauses and automatically resumes an interrupted task once your session's usage
 limit resets - whether that extends cleanly to a `--channels` session specifically is not

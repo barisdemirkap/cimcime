@@ -63,7 +63,8 @@ Useful CLI commands directly (`uv run python -m cimcime.cli <command>`):
 - `src/cimcime/` — the Python package (state store, approval gate, roadmap parser, CLI,
   message/delegation logging, notification formatting).
 - `.claude/agents/` — the orchestrator (`cimcime.md`), ~9 category-agents, the generic
-  topic-agent, and the board (`board.md` plus one agent per persona, ADR-0013).
+  topic-agent, the board (`board.md` plus one agent per persona, ADR-0013), and
+  `turkish-translator` — the one place Turkish is ever handled; everything else stays English.
 - `tests/` — `uv run pytest -q` runs the fast suite; integration tests (live GitHub) are
   excluded by default, run with `uv run pytest -m integration`.
 - `.github/workflows/tests.yml` — CI runs the fast suite on every push/PR to `main`, on

@@ -215,6 +215,22 @@ if ! command -v bun >/dev/null 2>&1 && ! [[ -x "$HOME/.bun/bin/bun" ]]; then
   fi
 fi
 
+# Pre-flight: the telegram channel plugin itself. Real gap found 2026-11-08: this
+# wizard assumed it was already installed (ADR-0009 only covers configuring and
+# pairing an existing install), so /telegram:configure silently didn't exist as a
+# command on a Mac Mini that had never run `claude plugin install` for it - no error,
+# just a command that doesn't resolve, which looks identical to a typo from the
+# outside. Install it the same no-human-interaction way as the Bun check above.
+if ! claude plugin list 2>/dev/null | grep -q "telegram@claude-plugins-official"; then
+  printf '\n%s%stelegram@claude-plugins-official not installed - installing...%s\n' "$DIM" "" "$RESET"
+  if claude plugin install telegram@claude-plugins-official -y >/dev/null 2>&1; then
+    printf '  %s✓ installed%s telegram@claude-plugins-official\n' "$GREEN" "$RESET"
+  else
+    SKIPPED+=("telegram plugin install failed - run 'claude plugin install telegram@claude-plugins-official' yourself before continuing")
+    warn "plugin install failed; /telegram:configure won't exist until this succeeds"
+  fi
+fi
+
 banner "Cimcime Telegram bridge setup (ADR-0009)"
 
 # ── Stage 1: create the bot via @BotFather ────────────────────────────────

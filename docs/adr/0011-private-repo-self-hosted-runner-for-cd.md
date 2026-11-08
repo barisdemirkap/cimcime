@@ -25,6 +25,10 @@ operate on the user's own clone to avoid any risk of CI clobbering uncommitted l
 the repo path from wherever it's invoked from, so running it from the runner's checkout
 naturally points the `launchd` service at that checkout instead.
 
+The runner process is itself a launchd service (`svc.sh install`), otherwise it stays offline after a
+reboot and deploys silently stop. Because the Telegram session then runs from the runner's checkout,
+its Claude permissions must be in the committed `.claude/settings.json`, not `settings.local.json`.
+
 ## Considered options
 
 - Keep the repo public, restrict the self-hosted job to `push`-only (same trigger

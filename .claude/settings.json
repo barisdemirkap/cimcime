@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git:*)",
+      "Bash(gh:*)",
+      "Bash(launchctl:*)",
+      "Bash(./svc.sh:*)",
+      "Bash(~/actions-runner/actions-runner/svc.sh:*)",
+      "mcp__claude-in-chrome__*"
+    ]
+  }
+}

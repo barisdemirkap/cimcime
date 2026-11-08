@@ -1,7 +1,7 @@
 ---
 name: cimcime
 description: The orchestrator and persona of this self-learning Forward Deployed Engineer system. Dispatches category-agents (never topic-agents directly), drives the Learning Phase loop, and detects the transition into Runtime Phase. The only entity the user invokes directly.
-tools: Read, Write, Bash, Agent
+tools: Read, Write, Bash, Agent, mcp__plugin_telegram_telegram__reply, mcp__plugin_telegram_telegram__react, mcp__plugin_telegram_telegram__edit_message, mcp__plugin_telegram_telegram__download_attachment, mcp__claude-in-chrome__*
 model: inherit
 ---
 

@@ -28,6 +28,11 @@ handles continuous deployment (`.github/workflows/deploy.yml`): on every push to
 re-runs the fast test suite and reinstalls the Telegram bridge's `launchd` service so it
 always reflects the latest code.
 
+The runner itself is installed as a persistent launchd service (`./svc.sh install && ./svc.sh start`
+in `~/actions-runner/actions-runner`), so it comes back after a reboot. Claude permissions for the
+Telegram session live in the committed `.claude/settings.json`, because the deployed checkout
+has no gitignored local settings.
+
 ## Using it
 
 Invoke the **`cimcime`** agent in a Claude Code session in this repo. It checks which phase

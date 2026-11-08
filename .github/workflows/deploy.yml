@@ -8,9 +8,16 @@ on:
   push:
     branches: [main]
 
+# One deploy at a time, and never alongside the daily claude-code update (both reinstall the
+# same launchd service). A newer push waits instead of cancelling a half-finished install.
+concurrency:
+  group: telegram-bridge-service
+  cancel-in-progress: false
+
 jobs:
   deploy-telegram-bridge:
     runs-on: self-hosted
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
@@ -18,3 +25,9 @@ jobs:
           python-version: "3.11"
       - run: uv run pytest -q
       - run: ./scripts/install_telegram_launchd.sh
+      - name: Verify the service is actually running
+        run: |
+          sleep 15
+          out="$(launchctl list com.cimcime.telegram-channel)"
+          echo "$out"
+          echo "$out" | grep -q '"PID"' || { echo "telegram-channel has no running process after deploy" >&2; exit 1; }

@@ -71,6 +71,10 @@ def build_parser() -> argparse.ArgumentParser:
     recent_messages.add_argument("chat_id")
     recent_messages.add_argument("--limit", type=int, default=20)
 
+    unanswered_messages = subparsers.add_parser("unanswered-messages")
+    unanswered_messages.add_argument("chat_id")
+    unanswered_messages.add_argument("--limit", type=int, default=50)
+
     delegate_summarize_parser = subparsers.add_parser("delegate-summarize")
     delegate_summarize_parser.add_argument("text", help="the tool output to summarize, or '-' to read it from stdin")
     delegate_summarize_parser.add_argument(
@@ -210,6 +214,18 @@ def _handle_recent_delegations(store: StateStore, args: argparse.Namespace) -> d
     return {"delegations": DelegationLog(default_log_path()).recent(args.limit)}
 
 
+def _handle_unanswered_messages(store: StateStore, args: argparse.Namespace) -> dict:
+    """Read-only: inbound messages since the last reply - usage-limit recovery
+    check, see MessageLog.unanswered's docstring for why this exists."""
+    messages = MessageLog(default_path()).unanswered(args.chat_id, args.limit)
+    return {
+        "messages": [
+            {"direction": m.direction.value, "message_id": m.message_id, "sent_at": m.sent_at, "text": m.text}
+            for m in messages
+        ]
+    }
+
+
 _HANDLERS = {
     "get-topic": _handle_get_topic,
     "update-status": _handle_update_status,
@@ -223,6 +239,7 @@ _HANDLERS = {
     "seed": _handle_seed,
     "log-message": _handle_log_message,
     "recent-messages": _handle_recent_messages,
+    "unanswered-messages": _handle_unanswered_messages,
     "delegate-summarize": _handle_delegate_summarize,
     "log-delegation": _handle_log_delegation,
     "recent-delegations": _handle_recent_delegations,

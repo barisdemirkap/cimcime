@@ -45,3 +45,37 @@ def test_cli_log_then_recent_round_trips(tmp_path, monkeypatch):
     result = json.loads(run(["recent-messages", "1"], store))
 
     assert [m["text"] for m in result["messages"]] == ["hmm bu bir bug"]
+
+
+# --- unanswered (usage-limit recovery) ----------------------------------------------
+
+def test_unanswered_is_empty_when_the_last_message_was_outbound(tmp_path):
+    log = MessageLog(tmp_path / "messages.db")
+    log.log("1", Direction.INBOUND, "soru", message_id="1")
+    log.log("1", Direction.OUTBOUND, "cevap", message_id="2")
+
+    assert log.unanswered("1") == []
+
+
+def test_unanswered_returns_everything_since_the_last_reply(tmp_path):
+    log = MessageLog(tmp_path / "messages.db")
+    log.log("1", Direction.INBOUND, "eski soru", message_id="1")
+    log.log("1", Direction.OUTBOUND, "eski cevap", message_id="2")
+    log.log("1", Direction.INBOUND, "yeni soru 1", message_id="3")
+    log.log("1", Direction.INBOUND, "yeni soru 2", message_id="4")
+
+    assert [m.text for m in log.unanswered("1")] == ["yeni soru 1", "yeni soru 2"]
+
+
+def test_unanswered_is_empty_for_a_chat_with_no_messages(tmp_path):
+    assert MessageLog(tmp_path / "messages.db").unanswered("unknown-chat") == []
+
+
+def test_cli_unanswered_messages_round_trips(tmp_path, monkeypatch):
+    monkeypatch.setenv("CIMCIME_MESSAGE_LOG", str(tmp_path / "messages.db"))
+    store = InMemoryStore()
+    run(["log-message", "1", "inbound", "token bitmisken gelen mesaj", "--message-id", "1"], store)
+
+    result = json.loads(run(["unanswered-messages", "1"], store))
+
+    assert [m["text"] for m in result["messages"]] == ["token bitmisken gelen mesaj"]

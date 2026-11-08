@@ -14,7 +14,11 @@
          so stdin is fed from a never-ending `tail -f /dev/null` pipe. -->
     <string>/bin/sh</string>
     <string>-c</string>
-    <string>tail -f /dev/null | /usr/bin/script -q /dev/null CLAUDE_BIN_PATH --channels plugin:telegram@claude-plugins-official --append-system-prompt 'Messages arriving as &lt;channel source="telegram"&gt; are from the user on Telegram, who cannot see this terminal. ALWAYS answer them by calling the telegram reply tool with the chat_id from the tag; plain text output is never delivered.'</string>
+    <!-- --agent cimcime: without this, the session never actually becomes Cimcime -
+         it's just a bare Claude Code session in this repo, with none of
+         .claude/agents/cimcime.md's dispatch rules, message logging, or usage-limit
+         recovery instructions active. Real gap found 2026-11-08. -->
+    <string>tail -f /dev/null | /usr/bin/script -q /dev/null CLAUDE_BIN_PATH --agent cimcime --channels plugin:telegram@claude-plugins-official --append-system-prompt 'Messages arriving as &lt;channel source="telegram"&gt; are from the user on Telegram, who cannot see this terminal. ALWAYS answer them by calling the telegram reply tool with the chat_id from the tag; plain text output is never delivered.'</string>
   </array>
   <key>WorkingDirectory</key><string>REPO_PATH</string>
   <key>EnvironmentVariables</key>

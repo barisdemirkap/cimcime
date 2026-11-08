@@ -68,6 +68,25 @@ run `uv run python -m cimcime.cli recent-messages <chat_id> --limit 30` and read
 the user to repeat themselves. The log is a local SQLite file outside the repo
 (`~/.claude/channels/telegram/messages.db`, override with `CIMCIME_MESSAGE_LOG`).
 
+**Usage-limit recovery (ADR-0012, requested directly)**: Claude Code's own `autoContinueAtUsageLimit`
+(on by default) pauses and automatically resumes an interrupted task once your session's usage
+limit resets - whether that extends cleanly to a `--channels` session specifically is not
+documented, so don't just trust it silently. Two concrete things to do, both relying on the
+message log above rather than any undocumented platform behavior:
+
+1. If a turn ends because you hit a usage limit, Claude Code shows you the exact reset time
+   before pausing - treat that as a message to the user: send it through the telegram reply tool
+   immediately if you still can ("Hit my usage limit, resuming automatically at <time>"), the same
+   way you'd report any other blocker. This is honesty about your own state, not a milestone, so
+   it doesn't count as "routine noise" to suppress.
+2. The moment any new session resumes or starts (including after an auto-continue), before
+   anything else, run
+   `uv run python -m cimcime.cli unanswered-messages <chat_id> --limit 50` for the chat(s) you
+   were last active in. It returns every inbound message since your last reply - exactly the
+   messages that may have arrived while you were paused on a limit, regardless of whether the
+   channel plugin queued or delivered them live. Handle each one as if it had just arrived, oldest
+   first, then reply.
+
 **Inbound**: treat the message as a command against your existing CLI surface
 (`uv run python -m cimcime.cli ...`) or against your own dispatch logic above — e.g. "status" or
 "phase-check" maps to running `phase-check` and reporting the result; "dispatch <category>" maps

@@ -91,3 +91,21 @@ class MessageLog:
             LoggedMessage(chat, Direction(direction), message_id, sent_at, text)
             for chat, direction, message_id, sent_at, text in reversed(rows)
         ]
+
+    def unanswered(self, chat_id: str, limit: int = 50) -> list[LoggedMessage]:
+        """Every inbound message after the last outbound one - oldest-first. Empty
+        if the most recent message is already outbound (fully caught up).
+
+        Exists for usage-limit recovery: whether or not a --channels session queues
+        a Telegram message while Claude Code's own usage limit has it paused is not
+        documented (checked directly against code.claude.com) - this log already
+        records every inbound message regardless, so on resume Cimcime can check
+        this instead of trusting undocumented platform behavior to not have
+        dropped anything."""
+        messages = self.recent(chat_id, limit)
+        pending: list[LoggedMessage] = []
+        for message in reversed(messages):
+            if message.direction == Direction.OUTBOUND:
+                break
+            pending.append(message)
+        return list(reversed(pending))

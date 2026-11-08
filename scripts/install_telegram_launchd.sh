@@ -42,6 +42,26 @@ sys.exit(0 if d.get('projects', {}).get('$REPO', {}).get('hasTrustDialogAccepted
   exit 1
 fi
 
+# A revoked/deleted bot token makes the service look healthy (process up, logs clean) while
+# receiving nothing - Telegram just answers 401. Fail loudly here instead.
+TOKEN="$(sed -n 's/^TELEGRAM_BOT_TOKEN=//p' ~/.claude/channels/telegram/.env 2>/dev/null | tr -d '"\r ')"
+if ! curl -fsS "https://api.telegram.org/bot$TOKEN/getMe" >/dev/null 2>&1; then
+  echo "error: Telegram rejects the bot token in ~/.claude/channels/telegram/.env (revoked or missing)." >&2
+  echo "Create a bot with @BotFather and save the token there, then re-run this script." >&2
+  exit 1
+fi
+
+# Every claude session that loads the telegram plugin starts its own bot server, and a new
+# server SIGTERMs the previous one (one poller per token) - so any other session silences
+# this service. Disable the plugin globally; the service enables it for itself via --settings.
+python3 - <<'PY'
+import json, os
+p = os.path.expanduser("~/.claude/settings.json")
+d = json.load(open(p)) if os.path.exists(p) else {}
+d.setdefault("enabledPlugins", {})["telegram@claude-plugins-official"] = False
+json.dump(d, open(p, "w"), indent=2)
+PY
+
 mkdir -p "$REPO/logs" ~/Library/LaunchAgents
 DEST=~/Library/LaunchAgents/com.cimcime.telegram-channel.plist
 sed -e "s#REPO_PATH#$REPO#g" -e "s#CLAUDE_BIN_PATH#$CLAUDE_BIN#g" -e "s#BUN_DIR#$BUN_DIR#g" \

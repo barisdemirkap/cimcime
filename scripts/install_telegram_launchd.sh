@@ -69,3 +69,11 @@ sed -e "s#REPO_PATH#$REPO#g" -e "s#CLAUDE_BIN_PATH#$CLAUDE_BIN#g" -e "s#BUN_DIR#
 launchctl unload "$DEST" 2>/dev/null || true
 launchctl load "$DEST"
 echo "Installed $DEST (claude binary: $CLAUDE_BIN, bun dir: $BUN_DIR)"
+
+# Watchdog: every 5 minutes restarts the service if it has died and records service /
+# Telegram API / DNS health in logs/health.log.
+WD_DEST=~/Library/LaunchAgents/com.cimcime.watchdog.plist
+sed -e "s#REPO_PATH#$REPO#g" "$REPO/scripts/com.cimcime.watchdog.plist" > "$WD_DEST"
+launchctl unload "$WD_DEST" 2>/dev/null || true
+launchctl load "$WD_DEST"
+echo "Installed $WD_DEST"

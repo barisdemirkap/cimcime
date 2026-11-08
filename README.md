@@ -43,6 +43,14 @@ Useful CLI commands directly (`uv run python -m cimcime.cli <command>`):
 - `category-status <category>` — read-only tally for one category
 - `category-rollup <category>` — posts a rollup comment to that category's tracking issue
 - `get-topic` / `update-status` / `add-finding` / `flag-needs-better-sources` — per-topic state
+- `delegate-summarize <text|->` — ADR-0012: summarize tool output via the local Qwen
+  backend instead of spending a Claude token on it; refuses anything under ADR-0001's
+  three approval gates before ever calling the backend. Needs a real llama.cpp server
+  running (`CIMCIME_QWEN_URL`, not yet deployed - the code is ready, the Mac Mini
+  server setup is a separate step)
+- `log-delegation <haiku|sonnet|qwen_local>` — records a Haiku/Sonnet delegation that
+  already happened through the Agent tool, so the log covers both backend families
+- `recent-delegations` — read-only: the last N delegation decisions, newest first
 
 ## Where things live
 

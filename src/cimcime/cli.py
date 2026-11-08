@@ -4,6 +4,14 @@ import argparse
 import json
 import sys
 
+from cimcime.approval_gate import ActionType
+from cimcime.delegation import (
+    Backend,
+    DelegationLog,
+    default_log_path,
+    delegate_summarize,
+    log_external_delegation,
+)
 from cimcime.message_log import Direction, MessageLog, default_path
 from cimcime.roadmap import DEFAULT_RESEARCH_DOC_PATH, expected_topics, topic_entries
 from cimcime.state_store import (
@@ -62,6 +70,21 @@ def build_parser() -> argparse.ArgumentParser:
     recent_messages = subparsers.add_parser("recent-messages")
     recent_messages.add_argument("chat_id")
     recent_messages.add_argument("--limit", type=int, default=20)
+
+    delegate_summarize_parser = subparsers.add_parser("delegate-summarize")
+    delegate_summarize_parser.add_argument("text", help="the tool output to summarize, or '-' to read it from stdin")
+    delegate_summarize_parser.add_argument(
+        "--action-type", default=ActionType.ROUTINE_WORK.value, choices=[a.value for a in ActionType]
+    )
+    delegate_summarize_parser.add_argument("--qwen-url")
+
+    log_delegation_parser = subparsers.add_parser("log-delegation")
+    log_delegation_parser.add_argument("backend", choices=[b.value for b in Backend])
+    log_delegation_parser.add_argument("--outcome", default="ok")
+    log_delegation_parser.add_argument("--detail")
+
+    recent_delegations = subparsers.add_parser("recent-delegations")
+    recent_delegations.add_argument("--limit", type=int, default=20)
 
     return parser
 
@@ -165,6 +188,28 @@ def _handle_recent_messages(store: StateStore, args: argparse.Namespace) -> dict
     }
 
 
+def _handle_delegate_summarize(store: StateStore, args: argparse.Namespace) -> dict:
+    """Delegates a tool-output summary to the local Qwen backend (ADR-0012 - the
+    only task type currently in scope). Reads from stdin when text is '-', since a
+    real tool output can be far larger than a shell is comfortable passing as an arg."""
+    text = sys.stdin.read() if args.text == "-" else args.text
+    log = DelegationLog(default_log_path())
+    summary = delegate_summarize(text, log=log, action_type=ActionType(args.action_type), base_url=args.qwen_url)
+    return {"summary": summary}
+
+
+def _handle_log_delegation(store: StateStore, args: argparse.Namespace) -> dict:
+    """Records a Haiku/Sonnet delegation that already happened through the existing
+    Agent tool (ADR-0012) - no inference call here, this is just the log entry."""
+    log_external_delegation(DelegationLog(default_log_path()), Backend(args.backend), args.outcome, args.detail)
+    return {"logged": True}
+
+
+def _handle_recent_delegations(store: StateStore, args: argparse.Namespace) -> dict:
+    """Read-only: the last `limit` delegation decisions, newest first."""
+    return {"delegations": DelegationLog(default_log_path()).recent(args.limit)}
+
+
 _HANDLERS = {
     "get-topic": _handle_get_topic,
     "update-status": _handle_update_status,
@@ -178,6 +223,9 @@ _HANDLERS = {
     "seed": _handle_seed,
     "log-message": _handle_log_message,
     "recent-messages": _handle_recent_messages,
+    "delegate-summarize": _handle_delegate_summarize,
+    "log-delegation": _handle_log_delegation,
+    "recent-delegations": _handle_recent_delegations,
 }
 
 

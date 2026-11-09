@@ -1,91 +1,113 @@
 # Cimcime
 
-An autonomous forward-deployed-engineer agent system. Cimcime learns the FDE skillset from
-roadmap.sh on its own, then does FDE work on demand — it is not a curriculum that teaches a
-human the skillset (see ADR-0001).
+Cimcime is an autonomous **forward-deployed-engineer (FDE) agent system** built on
+[Claude Code](https://claude.com/claude-code). It first teaches itself the FDE skillset from
+[roadmap.sh](https://roadmap.sh/forward-deployed-engineer), then does FDE-style work when you ask it
+to, either from a terminal session or from your phone over Telegram.
 
-## Status
+It runs on **macOS, Linux and Windows**.
 
-**Learning Phase: complete.** All 97 topics across all 9 categories are settled (`researched`
-or, where a topic's linked resources were genuinely unfetchable, flagged
-`needs-better-sources` per ADR-0007). Cimcime has switched to **Runtime Phase** (ADR-0003):
-it does no unprompted background work now, and acts only when invoked.
+## How it works
 
-The Telegram bridge (ADR-0009, Cimcime's Runtime-Phase human interface) is **live** on the Mac
-Mini as of 2026-11-08: bot created, plugin configured and paired, allowlisted to the user's own
-Telegram account, and running as the always-on `com.cimcime.telegram-channel` `launchd` service
-(see issue #7 for the real bring-up issues found and fixed along the way).
+- **Three-level agent hierarchy** (ADR-0002/0008): the `cimcime` orchestrator dispatches
+  category-agents; each category-agent dispatches its own topic-agents. Never sideways.
+- **Two phases** (ADR-0003): *Learning* (autonomously research all 97 roadmap topics) and then
+  *Runtime* (act only when asked).
+- **Three approval gates** (ADR-0001): Cimcime works autonomously except for production deploys,
+  real third-party communication, and real spend/account changes. Those always ask you first.
+- **State lives in GitHub** (ADR-0004): issues track every topic and category; study notes are plain
+  markdown in `docs/topics/`.
+- **A board of five personas** (ADR-0013) audits significant decisions before they are proposed to you.
+- **Optional Telegram bridge** (ADR-0009): talk to Cimcime from your phone via Claude Code's
+  `telegram` channel plugin.
 
-`scripts/telegram-setup-wizard.sh` walks through the whole thing on a fresh Mac Mini: creating
-the bot via @BotFather, installing the `telegram` channel plugin itself, the Claude Code
-commands to configure and pair it, and installing the always-on `launchd` service
-(`scripts/install_telegram_launchd.sh`) so the bridge survives a reboot.
+## Requirements
 
-This repo is **private** (made private specifically to run a self-hosted GitHub Actions
-runner safely — public repos + self-hosted runners are a known risk, since a fork's pull
-request could otherwise execute on the runner's host). A self-hosted runner on the Mac Mini
-handles continuous deployment (`.github/workflows/deploy.yml`): on every push to `main`, it
-re-runs the fast test suite and reinstalls the Telegram bridge's `launchd` service so it
-always reflects the latest code.
+| Tool | Why | Install |
+|---|---|---|
+| git | clone and version | https://git-scm.com |
+| GitHub CLI `gh` (logged in) | issue-based state store | https://cli.github.com, then `gh auth login` |
+| Claude Code `claude` | runs the agents | https://claude.com/claude-code |
+| Python 3.11+ and [uv](https://docs.astral.sh/uv) | the `cimcime` CLI (the installer sets up uv for you) | |
 
-The runner itself is installed as a persistent launchd service (`./svc.sh install && ./svc.sh start`
-in `~/actions-runner/actions-runner`), so it comes back after a reboot. Claude permissions for the
-Telegram session live in the committed `.claude/settings.json`, because the deployed checkout
-has no gitignored local settings.
+## Quick start
 
-## Using it
+**macOS / Linux**
 
-Invoke the **`cimcime`** agent in a Claude Code session in this repo. It checks which phase
-it's in (`uv run python -m cimcime.cli get-phase`) and acts accordingly — driving the Learning
-Phase loop if one is still open, or taking a direct request in Runtime Phase, subject to the
-three approval gates in ADR-0001 (production deploy, real third-party communication, real
-spend/account change).
+```sh
+curl -fsSL https://raw.githubusercontent.com/barisdemirkap/cimcime/master/install.sh | sh
+```
 
-Useful CLI commands directly (`uv run python -m cimcime.cli <command>`):
+**Windows (PowerShell)**
 
-- `phase-check` — read-only; reports per-category progress against the true roadmap roster
-- `get-phase` / `set-phase` — read/flip Learning vs. Runtime
-- `category-status <category>` — read-only tally for one category
-- `category-rollup <category>` — posts a rollup comment to that category's tracking issue
-- `get-topic` / `update-status` / `add-finding` / `flag-needs-better-sources` — per-topic state
-- `delegate-summarize <text|->` — ADR-0012: summarize tool output via the local Qwen
-  backend instead of spending a Claude token on it; refuses anything under ADR-0001's
-  three approval gates before ever calling the backend. Needs a real llama.cpp server
-  running (`CIMCIME_QWEN_URL`, not yet deployed - the code is ready, the Mac Mini
-  server setup is a separate step)
-- `log-delegation <haiku|sonnet|qwen_local>` — records a Haiku/Sonnet delegation that
-  already happened through the Agent tool, so the log covers both backend families
-- `recent-delegations` — read-only: the last N delegation decisions, newest first
+```powershell
+irm https://raw.githubusercontent.com/barisdemirkap/cimcime/master/install.ps1 | iex
+```
 
-## Where things live
+**Or manually, on any OS**
 
-- `GLOSSARY.md` — domain vocabulary (Cimcime, category-agent, topic-agent, Approval gate,
-  Learning/Runtime Phase, State store, Model backend, Telegram bridge).
-- `docs/adr/0001`–`0013` — every architecture decision and why it was made, in order.
-- `docs/research/forward-deployed-engineer-roadmap.md` — the full 97-topic curriculum index.
-- `docs/topics/<category>/<topic>.md` — one study file per researched topic.
-- `docs/board/<role>.md` — researched grounding for each board persona (ADR-0013).
-- `src/cimcime/` — the Python package (state store, approval gate, roadmap parser, CLI,
-  message/delegation logging, notification formatting).
-- `.claude/agents/` — the orchestrator (`cimcime.md`), ~9 category-agents, the generic
-  topic-agent, the board (`board.md` plus one agent per persona, ADR-0013), and
-  `turkish-translator` — the one place Turkish is ever handled; everything else stays English.
-- `tests/` — `uv run pytest -q` runs the fast suite; integration tests (live GitHub) are
-  excluded by default, run with `uv run pytest -m integration`.
-- `.github/workflows/tests.yml` — CI runs the fast suite on every push/PR to `main`, on
-  GitHub's own hosted runners.
-- `.github/workflows/deploy.yml` — on push to `main` only (never `pull_request` — this repo
-  is private, but that trigger restriction is the actual safety boundary for a self-hosted
-  runner), reinstalls/restarts the Telegram bridge's `launchd` service on the Mac Mini via a
-  self-hosted runner registered on that machine.
-- `scripts/` — `telegram-setup-wizard.sh` (plus its launchd plist and install script) walks
-  through the remaining Telegram bridge setup once a bot token exists.
+```sh
+uv tool install git+https://github.com/barisdemirkap/cimcime
+```
 
-## Design principles, in short
+Then:
 
-Cimcime acts autonomously on everything except three approval gates (production delivery/
-deployment, real third-party communication, real spend/account change) — reversible work is
-protected by git/backups instead of per-action permission (ADR-0001). It's a strict three-level
-hierarchy: Cimcime dispatches category-agents only, category-agents dispatch their own
-topic-agents only, never sideways (ADR-0002, ADR-0008). GitHub Issues plus this repo's own
-markdown are the source of truth for all tracked state (ADR-0004).
+```sh
+cimcime doctor                      # verify git, gh, claude are installed and logged in
+cimcime init <your-user>/<your-repo>  # the GitHub repo that tracks Cimcime's issues
+```
+
+Clone the repo and open Claude Code in it, then invoke the `cimcime` agent:
+
+```sh
+git clone https://github.com/barisdemirkap/cimcime && cd cimcime
+claude --agent cimcime
+```
+
+It checks its phase and acts accordingly. The repo's `.claude/agents/` and `.claude/skills/` are
+what make the agents available, so run Claude Code from the checkout.
+
+## Always-on mode and Telegram (optional)
+
+```sh
+cimcime service install     # launchd (macOS), systemd --user (Linux), Task Scheduler (Windows)
+cimcime service status | restart | uninstall
+```
+
+This keeps a persistent Cimcime session alive plus a watchdog that restarts it if it gets stuck.
+To reach it from Telegram, create a bot with @BotFather and pair it with Claude Code's
+`telegram` channel plugin (see `docs/adr/0009-telegram-bridge-via-claude-code-channels.md`).
+
+## Configuration
+
+Settings come from environment variables, then `cimcime.toml`, then defaults. The file is looked up
+in `$CIMCIME_CONFIG`, `./cimcime.toml`, then your user config dir
+(`~/Library/Application Support/cimcime`, `~/.config/cimcime`, or `%APPDATA%\cimcime`).
+See `cimcime.toml.example`. `cimcime.toml`, `logs/` and `secrets/` are gitignored, so your
+personal configuration is never committed.
+
+## CLI cheatsheet
+
+`cimcime phase-check`, `get-phase`, `set-phase`, `category-status <cat>`, `category-rollup <cat>`,
+`get-topic`, `update-status`, `add-finding`, `doctor`, `init`, `service`, `watchdog`.
+
+## Safety notes
+
+- Cimcime acts autonomously; review `.claude/settings.json` style permissions before running it on
+  a machine with sensitive data. Grant only the tools you are comfortable with.
+- Approval gates are enforced by the agents' instructions and `cimcime.approval_gate`; they are a
+  guardrail, not a sandbox. Run it in a dedicated account or machine for real work.
+- Never commit tokens. Report vulnerabilities per [SECURITY.md](SECURITY.md).
+
+## Repository map
+
+- `src/cimcime/` Python package (CLI, state store, approval gate, service, watchdog)
+- `.claude/agents/`, `.claude/skills/` agents and skills
+- `docs/adr/` every architecture decision; `GLOSSARY.md` the vocabulary
+- `docs/topics/`, `docs/research/` study notes (derived from roadmap.sh, with source links)
+- `tests/` run with `uv run pytest -q`
+
+## Contributing and license
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). MIT licensed; third-party skills are credited in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

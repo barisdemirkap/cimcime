@@ -15,5 +15,5 @@
 - Generic: agent hierarchy, board, state store, approval gates, CLI.
 
 ## Decisions (user, 2026-11-09)
-- Skills: option A, excluded from the public repo; setup docs explain how to install them separately.
+- Skills (revised 2026-11-09, supersedes option A): ALL skills ship in the public repo as part of the package, Matt Pocock skills included. Upstream mattpocock/skills is MIT, so the licensing blocker is resolved by attribution in THIRD_PARTY_NOTICES.md.
 - Topics/research: option B, kept with source links.

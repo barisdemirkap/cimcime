@@ -1,0 +1,28 @@
+name: publish-cimcime
+
+# Mirrors main to the public cimcime repo after every push to main, so publishing no longer
+# depends on an interactive session. Fast-forward only (never force) - if the public repo has
+# diverged the job fails loudly instead of overwriting anything.
+# Needs the repo secret CIMCIME_PUSH_TOKEN: a fine-grained PAT scoped to barisdemirkap/cimcime
+# with Contents: Read and write.
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: publish-cimcime
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: self-hosted
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Push main to cimcime (fast-forward only)
+        env:
+          CIMCIME_PUSH_TOKEN: ${{ secrets.CIMCIME_PUSH_TOKEN }}
+        run: |
+          git push "https://x-access-token:${CIMCIME_PUSH_TOKEN}@github.com/barisdemirkap/cimcime.git" HEAD:refs/heads/master

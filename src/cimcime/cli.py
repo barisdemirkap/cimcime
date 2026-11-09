@@ -5,6 +5,7 @@ import json
 import sys
 
 from cimcime.approval_gate import ActionType
+from cimcime.config import get_repo
 from cimcime.delegation import (
     Backend,
     DelegationLog,
@@ -23,8 +24,6 @@ from cimcime.state_store import (
     category_breakdown,
     summarize_category,
 )
-
-DEFAULT_REPO = "barisdemirkap/forward-deployed-engineer"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -264,7 +263,7 @@ def _topic_to_dict(record: TopicRecord) -> dict:
 
 
 def main() -> None:
-    store = GitHubIssuesStore(repo=DEFAULT_REPO)
+    store = GitHubIssuesStore(repo=get_repo())
     print(run(sys.argv[1:], store))
 
 

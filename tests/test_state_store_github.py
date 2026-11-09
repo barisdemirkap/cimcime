@@ -8,7 +8,7 @@ from cimcime.state_store import GitHubIssuesStore, Phase, TopicStatus
 
 pytestmark = pytest.mark.integration
 
-REPO = "barisdemirkap/forward-deployed-engineer"
+REPO = "example-owner/example-repo"
 
 
 def _close_test_issue(store: GitHubIssuesStore, topic_id: str) -> None:

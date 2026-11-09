@@ -13,3 +13,7 @@
 ## User-specific vs generic
 - Specific: Telegram bridge wiring, `turkish-translator` agent, launchd plists, self-hosted runner `deploy.yml`, ADR-0005/0011 (Mac mini).
 - Generic: agent hierarchy, board, state store, approval gates, CLI.
+
+## Decisions (user, 2026-11-09)
+- Skills: option A, excluded from the public repo; setup docs explain how to install them separately.
+- Topics/research: option B, kept with source links.

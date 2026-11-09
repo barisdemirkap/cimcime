@@ -8,7 +8,7 @@ Every Cimcime interaction today runs entirely on Claude, at full cost, for every
 matter how trivial - summarizing a long tool output, classifying a message, drafting text that
 will be reviewed anyway. ADR-0005 named a self-hosted Hermes model via Ollama as a planned,
 never-built "low-stakes secondary backend." Investigating two sibling projects
-(`barisdemirkap/agent-farm`, `barisdemirkap/private-agent-farm`) found a real, already-measured
+(two earlier private projects) found a real, already-measured
 alternative: `private-agent-farm` runs Qwen3-4B (generation) and Qwen3-Embedding-0.6B natively
 via llama.cpp on an M1/16GB Mac - the same hardware class as this system's own Mac Mini - with
 real numbers (6.2 GB peak RAM both models loaded, 9-20 s/answer, 0 swap) and a working,

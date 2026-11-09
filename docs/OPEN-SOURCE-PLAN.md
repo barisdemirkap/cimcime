@@ -9,8 +9,8 @@ Work is done phase by phase, resumable across sessions. Tick boxes as phases com
 - [x] Decide what stays user-specific (Telegram ids, personal repo names, Turkish-translator persona) vs. generic.
 
 ## Phase 1 - Decouple from one machine and one user
-- [ ] Replace hardcoded `DEFAULT_REPO` and personal repo names with config (env var / config file).
-- [ ] Config module: one `cimcime.toml` + env overrides, platform-aware data dirs (via platformdirs).
+- [x] Replace hardcoded `DEFAULT_REPO` and personal repo names with config (env var / config file).
+- [x] Config module: `cimcime.toml` + env overrides, platform-aware config dir (stdlib, no platformdirs dep). Data-dir migration for message log/delegation log still TODO.
 - [ ] Make the translator and language settings optional/configurable.
 
 ## Phase 2 - Cross-platform runtime

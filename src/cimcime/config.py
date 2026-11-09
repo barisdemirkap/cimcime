@@ -41,8 +41,24 @@ def load_config() -> dict:
     return {}
 
 
+def _repo_from_git_remote() -> str | None:
+    """Infer owner/name from the origin remote of the current checkout."""
+    import re
+    import subprocess
+
+    try:
+        url = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            capture_output=True, text=True, check=True, timeout=10,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    m = re.search(r"github\.com[:/]([^/\s]+/[^/\s]+?)(?:\.git)?/?$", url)
+    return m.group(1) if m else None
+
+
 def get_repo() -> str:
-    repo = os.environ.get(REPO_ENV_VAR) or load_config().get("repo")
+    repo = os.environ.get(REPO_ENV_VAR) or load_config().get("repo") or _repo_from_git_remote()
     if not repo:
         raise ConfigError(
             f"No GitHub repo configured. Set ${REPO_ENV_VAR}=owner/name or add "

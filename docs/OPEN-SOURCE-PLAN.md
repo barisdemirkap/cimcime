@@ -4,9 +4,9 @@ Goal: a new public repo `cimcime` that anyone can install and use on macOS, Linu
 Work is done phase by phase, resumable across sessions. Tick boxes as phases complete.
 
 ## Phase 0 - Audit (blocker for publishing)
-- [ ] Secret/PII scan of the tree and git history (no tokens, chat ids, paths, logs).
-- [ ] Licensing review: third-party skills in `.claude/skills` (credits/license), roadmap.sh derived content in `docs/topics`, `docs/research`. Remove or credit anything not redistributable.
-- [ ] Decide what stays user-specific (Telegram ids, personal repo names, Turkish-translator persona) vs. generic.
+- [x] Secret/PII scan of the tree and git history (no tokens, chat ids, paths, logs).
+- [x] Licensing review (see docs/OPEN-SOURCE-AUDIT.md; skills license is a blocker): third-party skills in `.claude/skills` (credits/license), roadmap.sh derived content in `docs/topics`, `docs/research`. Remove or credit anything not redistributable.
+- [x] Decide what stays user-specific (Telegram ids, personal repo names, Turkish-translator persona) vs. generic.
 
 ## Phase 1 - Decouple from one machine and one user
 - [ ] Replace hardcoded `DEFAULT_REPO` and personal repo names with config (env var / config file).

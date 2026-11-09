@@ -16,13 +16,13 @@ Work is done phase by phase, resumable across sessions. Tick boxes as phases com
 ## Phase 2 - Cross-platform runtime
 - [ ] Replace macOS-only launchd + bash watchdog with a Python watchdog.
 - [ ] Service installers: launchd (macOS), systemd user unit (Linux), Task Scheduler (Windows), behind one `cimcime service install`.
-- [ ] Python-only CLI entrypoint (`cimcime ...`), no bash dependency.
-- [ ] CI matrix: ubuntu, macos, windows.
+- [x] Python-only CLI entrypoint (`cimcime ...`), no bash dependency.
+- [x] CI matrix: ubuntu, macos, windows.
 
 ## Phase 3 - Easy install and onboarding
 - [ ] `pipx install cimcime` / `uv tool install`, plus one-line install scripts (sh and PowerShell).
 - [ ] `cimcime init` wizard: GitHub repo, Telegram pairing, permissions, service install.
-- [ ] `cimcime doctor` to check prerequisites (claude, gh, uv, git).
+- [x] `cimcime doctor` to check prerequisites (claude, gh, uv, git).
 
 ## Phase 4 - Docs and community files
 - [ ] README rewrite (what, why, quickstart for 3 OSes), architecture overview from ADRs.

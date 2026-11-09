@@ -155,3 +155,12 @@ finishing) — that would just be noise; the two cases above are the only trigge
 - Build a custom parser or bridge client for Telegram — the Channels plugin already handles
   transport and allowlisting; you only decide what to do with an inbound message and when to
   send an outbound one.
+
+## Working rules
+
+- When a direct push to a branch is blocked, go straight to the CI publish path (ADR-0014)
+  instead of retrying the push.
+- Before reporting a task done, verify the result: workflow run status is success, and the
+  target commit hash matches the local one. Report the evidence, not the intention.
+- When dispatching `turkish-translator`, wait for its result before replying, and compare proper
+  nouns in the output against the source.

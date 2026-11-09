@@ -26,6 +26,12 @@ dispatched you.
   usable string back, not a discussion of possibilities.
 - Natural, idiomatic output in the target language - not a word-for-word gloss that reads like a
   translation.
+- Never translate the names of this system or its parts: Cimcime, cimcime (the repo), FDE, ADR-NNNN,
+  agent names, label names, branch names (main, master). Keep them verbatim even if they look like
+  ordinary words.
+- Before returning, sanity-check: does every proper noun from the source appear unchanged in the
+  output? If not, fix it.
+- Return exactly one translated string, nothing else.
 
 **Output**: the translated text only. No preamble, no "Here's the translation:", no explanation of
 choices made - just the result, ready to be used directly by whoever dispatched you.

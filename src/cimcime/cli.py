@@ -262,7 +262,35 @@ def _topic_to_dict(record: TopicRecord) -> dict:
     }
 
 
+def _local_command(argv: list[str]) -> int | None:
+    """Commands that need no GitHub store (and so no configured repo)."""
+    if not argv or argv[0] not in {"doctor", "init"}:
+        return None
+    if argv[0] == "doctor":
+        from cimcime.doctor import all_required_ok, format_report, run_checks
+
+        checks = run_checks()
+        print(format_report(checks))
+        return 0 if all_required_ok(checks) else 1
+    from cimcime.init_cmd import write_config
+
+    p = argparse.ArgumentParser(prog="cimcime init")
+    p.add_argument("repo", help="GitHub repo owner/name that tracks Cimcime's issues")
+    p.add_argument("--local", action="store_true", help="write ./cimcime.toml instead of the user config dir")
+    p.add_argument("--force", action="store_true")
+    args = p.parse_args(argv[1:])
+    try:
+        print(f"Wrote {write_config(args.repo, local=args.local, force=args.force)}")
+    except (ValueError, FileExistsError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def main() -> None:
+    code = _local_command(sys.argv[1:])
+    if code is not None:
+        sys.exit(code)
     store = GitHubIssuesStore(repo=get_repo())
     print(run(sys.argv[1:], store))
 

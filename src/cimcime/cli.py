@@ -264,8 +264,34 @@ def _topic_to_dict(record: TopicRecord) -> dict:
 
 def _local_command(argv: list[str]) -> int | None:
     """Commands that need no GitHub store (and so no configured repo)."""
-    if not argv or argv[0] not in {"doctor", "init"}:
+    if not argv or argv[0] not in {"doctor", "init", "service", "watchdog"}:
         return None
+    if argv[0] == "watchdog":
+        from cimcime.watchdog import run_once
+
+        print(run_once())
+        return 0
+    if argv[0] == "service":
+        from cimcime import service
+
+        sp = argparse.ArgumentParser(prog="cimcime service")
+        sp.add_argument("action", choices=["install", "uninstall", "status", "restart"])
+        a = sp.parse_args(argv[1:])
+        try:
+            if a.action == "install":
+                for item in service.install():
+                    print(f"installed {item}")
+            elif a.action == "uninstall":
+                service.uninstall()
+                print("uninstalled")
+            elif a.action == "restart":
+                print("restarted" if service.restart() else "restart failed")
+            else:
+                print("running" if service.is_running() else "not running")
+        except service.ServiceError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        return 0
     if argv[0] == "doctor":
         from cimcime.doctor import all_required_ok, format_report, run_checks
 

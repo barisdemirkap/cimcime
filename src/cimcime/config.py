@@ -65,3 +65,16 @@ def get_repo() -> str:
             'repo = "owner/name" to cimcime.toml.'
         )
     return repo
+
+
+def data_dir() -> Path:
+    """Where logs and runtime state live (override with $CIMCIME_DATA_DIR)."""
+    if os.environ.get("CIMCIME_DATA_DIR"):
+        return Path(os.environ["CIMCIME_DATA_DIR"])
+    if sys.platform == "win32":
+        base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state")
+    return base / "cimcime"

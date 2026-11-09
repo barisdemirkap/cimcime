@@ -2,8 +2,8 @@
 
 Restarts the channel service if it has died, and handles "alive but not answering": the headless
 session can sit forever on an interactive prompt with the process alive. If the oldest inbound
-Telegram message has had no reply for >=10 min the user is alerted (once per message); at >=20 min
-the service is restarted (once per message; the new session recovers via `unanswered-messages`).
+Telegram message is unanswered and the session shows a stuck signal (silent output / prompt text) for
+>=3 min it is restarted and the user told; with no signal, alert at 10 min and restart at 20 min (once per message; the new session recovers via `unanswered-messages`).
 """
 from __future__ import annotations
 
@@ -21,7 +21,13 @@ from cimcime.config import data_dir
 from cimcime.message_log import default_path
 
 ALERT_AFTER_MIN = 10
-RESTART_AFTER_MIN = 20
+RESTART_AFTER_MIN = 20  # hard fallback: unanswered this long, restart regardless of signals
+FAST_AFTER_MIN = 3  # unanswered this long AND a stuck signal (below) -> restart now
+IDLE_AFTER_MIN = 3  # session output untouched this long counts as a stuck signal
+PROMPT_RE = re.compile(
+    r"do you want to proceed|password:|\(y/n\)|\[y/n\]|permission to|allow this|esc to cancel",
+    re.I,
+)
 ENV_FILE = Path.home() / ".claude" / "channels" / "telegram" / ".env"
 
 
@@ -57,11 +63,33 @@ def oldest_unanswered(db: Path, now: datetime | None = None) -> Unanswered | Non
     return None
 
 
-def decide(age_min: int, key: str, state: dict) -> tuple[bool, bool]:
-    """Return (alert, restart) given the message age and what was already done for this message."""
-    alert = age_min >= ALERT_AFTER_MIN and state.get("notified") != key
-    restart = age_min >= RESTART_AFTER_MIN and state.get("restarted") != key
+def decide(age_min: int, key: str, state: dict, signal: str | None = None) -> tuple[bool, bool]:
+    """Return (alert, restart) given the message age, a stuck signal, and what was already done."""
+    due = age_min >= RESTART_AFTER_MIN or (signal is not None and age_min >= FAST_AFTER_MIN)
+    restart = due and state.get("restarted") != key
+    alert = (restart or age_min >= ALERT_AFTER_MIN) and state.get("notified") != key
     return alert, restart
+
+
+def stuck_signal(out_file: Path, now: datetime | None = None) -> str | None:
+    """Return why the session looks stuck ('prompt' or 'idle'), or None if it looks busy.
+
+    A thinking/working session keeps redrawing its spinner, so the pty output file keeps changing;
+    a session frozen on a dialog or password prompt goes silent, and the dialog text is on screen.
+    """
+    try:
+        raw = out_file.read_bytes()[-4000:].decode("utf-8", "ignore")
+        mtime = datetime.fromtimestamp(out_file.stat().st_mtime, timezone.utc)
+    except OSError:
+        return None
+    text = re.sub(r"\x1b\[[0-9;?]*[a-zA-Z]", "", raw)
+    now = now or datetime.now(timezone.utc)
+    idle = (now - mtime).total_seconds() / 60 >= IDLE_AFTER_MIN
+    if idle and PROMPT_RE.search(text):
+        return "prompt"
+    if idle:
+        return "idle"
+    return None
 
 
 def read_token() -> str | None:
@@ -111,11 +139,12 @@ def run_once() -> str:
     stuck = "none"
     un = oldest_unanswered(default_path())
     if un:
-        alert, restart = decide(un.age_min, un.key, state)
+        signal = stuck_signal(logs / "channel.out")
+        alert, restart = decide(un.age_min, un.key, state, signal)
         if alert and token:
             send_alert(token, un.chat_id, (
-                f"Cimcime has not answered your message for {un.age_min} min (probably stuck on a "
-                f"prompt). Auto-restart at {RESTART_AFTER_MIN} min."))
+                f"Cimcime has not answered your message for {un.age_min} min (stuck signal: "
+                f"{signal or 'none'}). {'Restarting now.' if restart else 'Auto-restart soon.'}"))
             state["notified"] = un.key
             stuck = "alerted"
         if restart:

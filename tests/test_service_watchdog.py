@@ -45,3 +45,24 @@ def test_oldest_unanswered(tmp_path):
     un = watchdog.oldest_unanswered(db, now)
     assert un and un.chat_id == "7" and un.age_min == 15
     assert watchdog.oldest_unanswered(tmp_path / "none.db", now) is None
+
+
+def test_fast_restart_only_with_stuck_signal():
+    assert watchdog.decide(4, "k", {}, "prompt") == (True, True)
+    assert watchdog.decide(4, "k", {}, None) == (False, False)
+    assert watchdog.decide(21, "k", {}, None) == (True, True)
+    assert watchdog.decide(4, "k", {"notified": "k", "restarted": "k"}, "idle") == (False, False)
+
+
+def test_stuck_signal(tmp_path):
+    import os
+    f = tmp_path / "channel.out"
+    f.write_text("Do you want to proceed?")
+    now = datetime.now(timezone.utc)
+    assert watchdog.stuck_signal(f, now) is None  # fresh output = busy
+    old = now.timestamp() - 600
+    os.utime(f, (old, old))
+    assert watchdog.stuck_signal(f, now) == "prompt"
+    f.write_text("working")
+    os.utime(f, (old, old))
+    assert watchdog.stuck_signal(f, now) == "idle"

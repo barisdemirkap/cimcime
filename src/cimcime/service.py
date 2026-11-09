@@ -93,7 +93,7 @@ def render_launchd_watchdog(spec: Spec) -> str:
   <key>ProgramArguments</key>
   <array><string>{escape(spec.cimcime)}</string><string>watchdog</string></array>
   <key>EnvironmentVariables</key><dict><key>PATH</key><string>{escape(spec.path_env)}</string></dict>
-  <key>StartInterval</key><integer>300</integer>
+  <key>StartInterval</key><integer>60</integer>
   <key>RunAtLoad</key><true/>
   <key>StandardErrorPath</key><string>{escape(str(spec.logs / "watchdog.err"))}</string>
 </dict>
@@ -134,11 +134,11 @@ ExecStart={spec.cimcime} watchdog
 
 def render_systemd_watchdog_timer() -> str:
     return """[Unit]
-Description=Run the Cimcime watchdog every 5 minutes
+Description=Run the Cimcime watchdog every minute
 
 [Timer]
 OnBootSec=2min
-OnUnitActiveSec=5min
+OnUnitActiveSec=1min
 
 [Install]
 WantedBy=timers.target

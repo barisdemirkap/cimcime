@@ -2,8 +2,10 @@
 
 Restarts the channel service if it has died, and handles "alive but not answering": the headless
 session can sit forever on an interactive prompt with the process alive. If the oldest inbound
-Telegram message is unanswered and the session shows a stuck signal (silent output / prompt text) for
->=3 min it is restarted and the user told; with no signal, alert at 10 min and restart at 20 min (once per message; the new session recovers via `unanswered-messages`).
+Telegram message is unanswered: a prompt on screen -> restart after 3 min; no activity at all for 5 min
+and unanswered 15 min -> restart; any recent output/transcript activity = busy = never restart (it would
+kill in-flight work), only a one-time alert at 10 min. Once per message; the new session recovers via
+`unanswered-messages`.
 """
 from __future__ import annotations
 
@@ -20,10 +22,12 @@ from cimcime import service
 from cimcime.config import data_dir
 from cimcime.message_log import default_path
 
-ALERT_AFTER_MIN = 10
-RESTART_AFTER_MIN = 20  # hard fallback: unanswered this long, restart regardless of signals
-FAST_AFTER_MIN = 3  # unanswered this long AND a stuck signal (below) -> restart now
-IDLE_AFTER_MIN = 3  # session output untouched this long counts as a stuck signal
+ALERT_AFTER_MIN = 10  # unanswered this long: tell the user once (never a restart by itself)
+FAST_AFTER_MIN = 3  # unanswered this long AND a permission/password prompt on screen -> restart
+IDLE_RESTART_AFTER_MIN = 15  # unanswered this long AND zero activity for IDLE_AFTER_MIN -> restart
+IDLE_AFTER_MIN = 5  # no terminal output and no transcript write for this long = idle
+# A session that is still producing output or writing its transcript is WORKING (long research,
+# subagents): silence toward the user is not a hang, and a restart would kill that work.
 PROMPT_RE = re.compile(
     r"do you want to proceed|password:|\(y/n\)|\[y/n\]|permission to|allow this|esc to cancel",
     re.I,
@@ -64,32 +68,53 @@ def oldest_unanswered(db: Path, now: datetime | None = None) -> Unanswered | Non
 
 
 def decide(age_min: int, key: str, state: dict, signal: str | None = None) -> tuple[bool, bool]:
-    """Return (alert, restart) given the message age, a stuck signal, and what was already done."""
-    due = age_min >= RESTART_AFTER_MIN or (signal is not None and age_min >= FAST_AFTER_MIN)
+    """Return (alert, restart). Restart only for a prompt (fast) or confirmed idleness (slower).
+
+    signal None means busy/unknown: never restart, however long the message has waited.
+    """
+    due = (signal == "prompt" and age_min >= FAST_AFTER_MIN) or (
+        signal == "idle" and age_min >= IDLE_RESTART_AFTER_MIN
+    )
     restart = due and state.get("restarted") != key
     alert = (restart or age_min >= ALERT_AFTER_MIN) and state.get("notified") != key
     return alert, restart
 
 
-def stuck_signal(out_file: Path, now: datetime | None = None) -> str | None:
-    """Return why the session looks stuck ('prompt' or 'idle'), or None if it looks busy.
-
-    A thinking/working session keeps redrawing its spinner, so the pty output file keeps changing;
-    a session frozen on a dialog or password prompt goes silent, and the dialog text is on screen.
-    """
+def activity_files(out_files: list[Path], workdir: Path | None = None) -> list[Path]:
+    """Terminal output files plus the newest session transcript under ~/.claude/projects."""
+    files = list(out_files)
+    slug = re.sub(r"[^A-Za-z0-9]", "-", str(workdir or Path.cwd()))
+    root = Path.home() / ".claude" / "projects" / slug
     try:
-        raw = out_file.read_bytes()[-4000:].decode("utf-8", "ignore")
-        mtime = datetime.fromtimestamp(out_file.stat().st_mtime, timezone.utc)
+        newest = max((p for p in root.rglob("*.jsonl")), key=lambda p: p.stat().st_mtime, default=None)
     except OSError:
-        return None
-    text = re.sub(r"\x1b\[[0-9;?]*[a-zA-Z]", "", raw)
+        newest = None
+    if newest:
+        files.append(newest)
+    return files
+
+
+def stuck_signal(out_file: Path | list[Path], now: datetime | None = None) -> str | None:
+    """Return why the session looks stuck ('prompt' or 'idle'), or None if busy/unknown.
+
+    Busy = ANY watched file (terminal output, session transcript) changed within IDLE_AFTER_MIN.
+    A session frozen on a dialog or password prompt goes silent with the dialog text on screen.
+    """
+    files = out_file if isinstance(out_file, list) else [out_file]
     now = now or datetime.now(timezone.utc)
-    idle = (now - mtime).total_seconds() / 60 >= IDLE_AFTER_MIN
-    if idle and PROMPT_RE.search(text):
-        return "prompt"
-    if idle:
-        return "idle"
-    return None
+    newest, text = None, ""
+    for f in files:
+        try:
+            m = datetime.fromtimestamp(f.stat().st_mtime, timezone.utc)
+            if f.suffix != ".jsonl":
+                raw = f.read_bytes()[-4000:].decode("utf-8", "ignore")
+                text = re.sub(r"\x1b\[[0-9;?]*[a-zA-Z]", "", raw)
+        except OSError:
+            continue
+        newest = m if newest is None or m > newest else newest
+    if newest is None or (now - newest).total_seconds() / 60 < IDLE_AFTER_MIN:
+        return None
+    return "prompt" if PROMPT_RE.search(text) else "idle"
 
 
 def read_token() -> str | None:
@@ -139,12 +164,13 @@ def run_once() -> str:
     stuck = "none"
     un = oldest_unanswered(default_path())
     if un:
-        signal = stuck_signal(logs / "channel.out")
+        signal = stuck_signal(activity_files([logs / "launchd-telegram-channel.out", logs / "channel.out"]))
         alert, restart = decide(un.age_min, un.key, state, signal)
         if alert and token:
             send_alert(token, un.chat_id, (
                 f"Cimcime has not answered your message for {un.age_min} min (stuck signal: "
-                f"{signal or 'none'}). {'Restarting now.' if restart else 'Auto-restart soon.'}"))
+                f"{signal or 'busy'}). "
+                + ("Restarting now." if restart else "It is still working, not restarting." if signal is None else "Will restart if it stays idle.")))
             state["notified"] = un.key
             stuck = "alerted"
         if restart:

@@ -29,8 +29,8 @@ def test_systemd_units_reference_commands():
 def test_decide_once_per_message():
     assert watchdog.decide(5, "1", {}) == (False, False)
     assert watchdog.decide(10, "1", {}) == (True, False)
-    assert watchdog.decide(25, "1", {"notified": "1"}) == (False, True)
-    assert watchdog.decide(25, "1", {"notified": "1", "restarted": "1"}) == (False, False)
+    assert watchdog.decide(25, "1", {"notified": "1"}, "idle") == (False, True)
+    assert watchdog.decide(25, "1", {"notified": "1", "restarted": "1"}, "idle") == (False, False)
 
 
 def test_oldest_unanswered(tmp_path):
@@ -47,11 +47,17 @@ def test_oldest_unanswered(tmp_path):
     assert watchdog.oldest_unanswered(tmp_path / "none.db", now) is None
 
 
-def test_fast_restart_only_with_stuck_signal():
+def test_busy_session_is_never_restarted():
+    # the 2026-11-11 bug: 20+ min of silent work killed by the old hard fallback
+    assert watchdog.decide(25, "k", {}, None) == (True, False)
+    assert watchdog.decide(120, "k", {"notified": "k"}, None) == (False, False)
+
+
+def test_restart_rules():
     assert watchdog.decide(4, "k", {}, "prompt") == (True, True)
-    assert watchdog.decide(4, "k", {}, None) == (False, False)
-    assert watchdog.decide(21, "k", {}, None) == (True, True)
-    assert watchdog.decide(4, "k", {"notified": "k", "restarted": "k"}, "idle") == (False, False)
+    assert watchdog.decide(4, "k", {}, "idle") == (False, False)
+    assert watchdog.decide(16, "k", {}, "idle") == (True, True)
+    assert watchdog.decide(4, "k", {"notified": "k", "restarted": "k"}, "prompt") == (False, False)
 
 
 def test_stuck_signal(tmp_path):
@@ -66,3 +72,17 @@ def test_stuck_signal(tmp_path):
     f.write_text("working")
     os.utime(f, (old, old))
     assert watchdog.stuck_signal(f, now) == "idle"
+
+
+def test_fresh_transcript_means_busy_even_if_terminal_silent(tmp_path):
+    import os
+    out = tmp_path / "channel.out"
+    out.write_text("quiet")
+    old = datetime.now(timezone.utc).timestamp() - 3600
+    os.utime(out, (old, old))
+    log = tmp_path / "s.jsonl"
+    log.write_text("{}")  # just written
+    assert watchdog.stuck_signal([out, log]) is None
+    os.utime(log, (old, old))
+    assert watchdog.stuck_signal([out, log]) == "idle"
+    assert watchdog.stuck_signal([tmp_path / "missing"]) is None

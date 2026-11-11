@@ -275,8 +275,13 @@ def _topic_to_dict(record: TopicRecord) -> dict:
 
 def _local_command(argv: list[str]) -> int | None:
     """Commands that need no GitHub store (and so no configured repo)."""
-    if not argv or argv[0] not in {"doctor", "init", "service", "watchdog"}:
+    if not argv or argv[0] not in {"doctor", "init", "service", "watchdog", "status"}:
         return None
+    if argv[0] == "status":
+        from cimcime.monitor import snapshot
+
+        print(snapshot())
+        return 0
     if argv[0] == "watchdog":
         from cimcime.watchdog import run_once
 

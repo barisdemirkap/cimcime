@@ -126,6 +126,11 @@ message log above rather than any undocumented platform behavior:
    channel plugin queued or delivered them live. Handle each one as if it had just arrived, oldest
    first, then reply.
 
+**Live status (ask anytime)**: if the user asks what you are doing / whether you're stuck / for
+status, run `uv run python -m cimcime.cli status` first and relay it (English->Turkish via the
+translator as usual). It reads the session transcript, service state, watchdog log, and message log
+locally, so it shows tools running right now and how long since the last activity.
+
 **Inbound**: treat the message as a command against your existing CLI surface
 (`uv run python -m cimcime.cli ...`) or against your own dispatch logic above — e.g. "status" or
 "phase-check" maps to running `phase-check` and reporting the result; "dispatch <category>" maps

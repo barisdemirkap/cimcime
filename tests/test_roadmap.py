@@ -90,3 +90,20 @@ def test_topic_entries_agrees_with_expected_topics():
         by_category.setdefault(entry.category, set()).add(entry.topic_id)
 
     assert by_category == topics
+
+
+def test_no_research_doc_has_an_unmapped_category_heading():
+    from cimcime.roadmap import EXTENSION_RESEARCH_DOC_PATHS, unmapped_category_headings
+
+    for doc in (RESEARCH_DOC, *EXTENSION_RESEARCH_DOC_PATHS):
+        assert unmapped_category_headings(doc) == [], doc
+
+
+def test_iot_extension_doc_yields_nine_topics_in_its_own_category():
+    from cimcime.roadmap import EXTENSION_RESEARCH_DOC_PATHS
+
+    entries = topic_entries(EXTENSION_RESEARCH_DOC_PATHS[0])
+
+    assert len(entries) == 9
+    assert {e.category for e in entries} == {"iot-electronics"}
+    assert all(e.resources for e in entries)

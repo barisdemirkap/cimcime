@@ -18,11 +18,33 @@ CATEGORY_SLUGS: dict[str, str] = {
     "Client Engagement & Delivery": "client-engagement-delivery",
     "Business & Strategy": "business-strategy",
     "Documentation": "client-engagement-delivery",
+    # User-requested extension (2026-11-11), outside the original 97-topic Learning Phase;
+    # lives in its own research doc (EXTENSION_RESEARCH_DOC_PATHS).
+    "IoT & Electronics": "iot-electronics",
 }
 
 DEFAULT_RESEARCH_DOC_PATH = (
     Path(__file__).parent.parent.parent / "docs" / "research" / "forward-deployed-engineer-roadmap.md"
 )
+
+EXTENSION_RESEARCH_DOC_PATHS: tuple[Path, ...] = (
+    Path(__file__).parent.parent.parent / "docs" / "research" / "iot-electronics-roadmap.md",
+)
+
+# `##` headings that are deliberately not categories (notes, not topics).
+NON_CATEGORY_HEADINGS: frozenset[str] = frozenset({"Gaps / notes"})
+
+
+def unmapped_category_headings(research_doc_path: Path) -> list[str]:
+    """`##` headings that are neither a known category nor an allowed non-category heading -
+    `topic_entries` silently drops everything under these, so tests assert this is empty."""
+    found = []
+    for line in research_doc_path.read_text().splitlines():
+        match = _CATEGORY_HEADING_RE.match(line)
+        if match and match.group(1) not in CATEGORY_SLUGS and match.group(1) not in NON_CATEGORY_HEADINGS:
+            found.append(match.group(1))
+    return found
+
 
 _CATEGORY_HEADING_RE = re.compile(r"^## (?:\d+\.\s*)?(.+?)\s*$")
 _TOPIC_HEADING_RE = re.compile(r"^### (.+?)\s*$")

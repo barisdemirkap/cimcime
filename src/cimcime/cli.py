@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
 from cimcime.approval_gate import ActionType
 from cimcime.config import get_repo
@@ -57,7 +58,9 @@ def build_parser() -> argparse.ArgumentParser:
     set_phase = subparsers.add_parser("set-phase")
     set_phase.add_argument("phase", choices=[phase.value for phase in Phase])
 
-    subparsers.add_parser("seed")
+    seed_parser = subparsers.add_parser("seed")
+    seed_parser.add_argument("--doc", default=None, help="research doc to seed from (default: the original roadmap doc)")
+    seed_parser.add_argument("--dry-run", action="store_true", help="report what would be created without creating it")
 
     log_message = subparsers.add_parser("log-message")
     log_message.add_argument("chat_id")
@@ -153,14 +156,22 @@ def _handle_set_phase(store: StateStore, args: argparse.Namespace) -> dict:
 def _handle_seed(store: StateStore, args: argparse.Namespace) -> dict:
     """Idempotent: a topic already tracked (by topic_id) is skipped, never duplicated."""
     created = skipped = 0
-    for entry in topic_entries(DEFAULT_RESEARCH_DOC_PATH):
+    would_create: list[str] = []
+    doc = Path(args.doc) if args.doc else DEFAULT_RESEARCH_DOC_PATH
+    for entry in topic_entries(doc):
         try:
             store.get_topic(entry.topic_id)  # ValueError here means "not tracked yet"
             skipped += 1
         except ValueError:
-            store.create_topic(entry.topic_id, entry.category, entry.title, entry.resources)
+            if args.dry_run:
+                would_create.append(entry.topic_id)
+            else:
+                store.create_topic(entry.topic_id, entry.category, entry.title, entry.resources)
             created += 1
-    return {"created": created, "skipped": skipped}
+    result = {"created": created, "skipped": skipped}
+    if args.dry_run:
+        result = {"dry_run": True, "would_create": would_create, "skipped": skipped}
+    return result
 
 
 def _handle_log_message(store: StateStore, args: argparse.Namespace) -> dict:

@@ -107,3 +107,11 @@ def test_iot_extension_doc_yields_nine_topics_in_its_own_category():
     assert len(entries) == 9
     assert {e.category for e in entries} == {"iot-electronics"}
     assert all(e.resources for e in entries)
+
+
+def test_ui_extension_doc_yields_eight_topics_in_its_own_category():
+    from cimcime.roadmap import EXTENSION_RESEARCH_DOC_PATHS
+
+    entries = topic_entries(EXTENSION_RESEARCH_DOC_PATHS[1])
+    assert len(entries) == 8
+    assert {e.category for e in entries} == {"ui-product-development"}

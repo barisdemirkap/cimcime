@@ -1,7 +1,7 @@
-# UI & Product Development Roadmap — DRAFT (awaiting user approval)
+# UI & Product Development Roadmap (approved 2026-11-11)
 
 - **Origin**: user-requested extension (Telegram, 2026-11-11), board-reviewed (ADR-0013). Order agreed: IoT & Electronics first, then UI/UX. Not part of the roadmap.sh FDE roadmap.
-- **Status**: DRAFT. Not seeded, not wired into `roadmap.py`, no research dispatched until the user approves this draft.
+- **Status**: APPROVED by user (Telegram msg 220). Wired into `roadmap.py` as an extension doc.
 - **Purpose**: UI/UX and product-development foundations for farmwatch-style projects (a field-monitoring dashboard on top of the IoT pipeline).
 - **Success check**: a built artifact — a farmwatch dashboard prototype (live sensor readings, history chart, alert state) designed and implemented against mock data.
 - **Constraints**: learning only, one research pass per topic, no loops. No hardware or paid-service spend (user decision 2026-11-11: no hardware purchases except for farmwatch itself). URLs below are UNVERIFIED seeds; unreachable ones mark the topic `fde:needs-better-sources` (ADR-0007).

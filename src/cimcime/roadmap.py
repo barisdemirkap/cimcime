@@ -21,6 +21,7 @@ CATEGORY_SLUGS: dict[str, str] = {
     # User-requested extension (2026-11-11), outside the original 97-topic Learning Phase;
     # lives in its own research doc (EXTENSION_RESEARCH_DOC_PATHS).
     "IoT & Electronics": "iot-electronics",
+    "UI & Product Development": "ui-product-development",
 }
 
 DEFAULT_RESEARCH_DOC_PATH = (
@@ -29,6 +30,7 @@ DEFAULT_RESEARCH_DOC_PATH = (
 
 EXTENSION_RESEARCH_DOC_PATHS: tuple[Path, ...] = (
     Path(__file__).parent.parent.parent / "docs" / "research" / "iot-electronics-roadmap.md",
+    Path(__file__).parent.parent.parent / "docs" / "research" / "ui-product-roadmap.md",
 )
 
 # `##` headings that are deliberately not categories (notes, not topics).

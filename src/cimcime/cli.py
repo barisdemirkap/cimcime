@@ -275,8 +275,10 @@ def _topic_to_dict(record: TopicRecord) -> dict:
 
 def _local_command(argv: list[str]) -> int | None:
     """Commands that need no GitHub store (and so no configured repo)."""
-    if not argv or argv[0] not in {"doctor", "init", "service", "watchdog", "status"}:
+    if not argv or argv[0] not in {"doctor", "init", "service", "watchdog", "status", "voice"}:
         return None
+    if argv[0] == "voice":
+        return _voice_command(argv[1:])
     if argv[0] == "status":
         from cimcime.monitor import snapshot
 
@@ -327,6 +329,45 @@ def _local_command(argv: list[str]) -> int | None:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     return 0
+
+
+def _voice_command(argv: list[str]) -> int:
+    """voice transcribe <file> | voice speak <chat_id> <text> | voice doctor. Always prints JSON;
+    exit code 1 with {"ok": false, "error": ...} so the caller can answer in text instead."""
+    from pathlib import Path
+
+    from cimcime import voice
+
+    p = argparse.ArgumentParser(prog="cimcime voice")
+    sub = p.add_subparsers(dest="action", required=True)
+    t = sub.add_parser("transcribe")
+    t.add_argument("file")
+    t.add_argument("--language", default="tr")
+    s = sub.add_parser("speak")
+    s.add_argument("chat_id")
+    s.add_argument("text")
+    s.add_argument("--caption", default=None)
+    sub.add_parser("doctor")
+    args = p.parse_args(argv)
+    try:
+        if args.action == "doctor":
+            checks = voice.doctor()
+            print(json.dumps({"ok": all(ok for _, ok, _ in checks), "checks": [
+                {"name": n, "ok": ok, "detail": d} for n, ok, d in checks]}))
+            return 0 if all(ok for _, ok, _ in checks) else 1
+        if args.action == "transcribe":
+            print(json.dumps({"ok": True, "transcript": voice.transcribe(Path(args.file), args.language)},
+                             ensure_ascii=False))
+            return 0
+        result = voice.speak(args.chat_id, args.text, caption=args.caption)
+        MessageLog(default_path()).log(
+            args.chat_id, Direction.OUTBOUND, f"[voice] {args.text}", message_id=result["message_id"]
+        )
+        print(json.dumps({"ok": True, **result}))
+        return 0
+    except voice.VoiceError as exc:
+        print(json.dumps({"ok": False, "error": str(exc)}))
+        return 1
 
 
 def main() -> None:

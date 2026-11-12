@@ -27,7 +27,7 @@ DEFAULT_TTS_VOICE = "tr-TR-EmelNeural"  # the only female Turkish neural voice e
 TTS_RATE_ENV = "CIMCIME_TTS_RATE"
 TTS_PITCH_ENV = "CIMCIME_TTS_PITCH"
 DEFAULT_TTS_RATE = "+5%"  # +12% sounded rushed and robotic; brisk but breathable
-DEFAULT_TTS_PITCH = "+3Hz"  # slightly younger, not thin
+DEFAULT_TTS_PITCH = "-6Hz"  # user asked for a thicker, deeper voice (was +3Hz)
 LOCAL_FALLBACK_VOICE = "Yelda"
 TELEGRAM_ENV_FILE = Path.home() / ".claude" / "channels" / "telegram" / ".env"
 EDGE_TTS_FALLBACK = Path.home() / ".local" / "bin" / "edge-tts"
@@ -168,24 +168,24 @@ def split_segments(text: str) -> list[tuple[str, float, int, int]]:
         if not sent or not re.search(r"\w", sent):
             continue
         if sent.endswith("?"):
-            end = (0.24, 0, 4)
+            end = (0.12, 0, 4)
         elif sent.endswith("!"):
-            end = (0.2, 4, 3)
+            end = (0.08, 4, 3)
         elif sent.endswith(("...", "…")):
-            end = (0.35, -8, -2)
+            end = (0.2, -8, -2)
         else:
-            end = (0.2, -2, -1)  # a plain statement settles down
+            end = (0.08, -2, -1)  # a plain statement settles down
         if len(sent.split()) > 14:
-            end = (end[0] + 0.08, end[1], end[2])
+            end = (end[0] + 0.04, end[1], end[2])
         clauses = _clauses(sent)
         for i, c in enumerate(clauses):
             if i < len(clauses) - 1:
-                pause = 0.28 if c.endswith((";", ":")) else 0.14
+                pause = 0.12 if c.endswith((";", ":")) else 0.03
                 segments.append((c, pause, 1, 2))  # continuation: small lift, no slowdown
             else:
                 segments.append((c, *end))
     # a very short opener ("Tamam.", "Merhaba!") gets a shorter beat so it flows into the next line
-    return [(t, min(p, 0.12) if len(t) < 12 else p, r, h) for t, p, r, h in segments]
+    return [(t, min(p, 0.05) if len(t) < 12 else p, r, h) for t, p, r, h in segments]
 
 
 def _synthesize_edge_natural(text: str, voice: str, out: Path, tmp: Path) -> None:
@@ -204,7 +204,7 @@ def _synthesize_edge_natural(text: str, voice: str, out: Path, tmp: Path) -> Non
     for m in mp3s:
         cmd += ["-i", str(m)]
     chains = [
-        f"[{i}:a]aresample=48000,aformat=channel_layouts=mono,apad=pad_dur={pause}[a{i}]"
+        f"[{i}:a]aresample=48000,aformat=channel_layouts=mono,silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse,apad=pad_dur={pause}[a{i}]"
         for i, (_t, pause, _r, _p) in enumerate(segments)
     ]
     concat = "".join(f"[a{i}]" for i in range(len(segments))) + f"concat=n={len(segments)}:v=0:a=1[out]"

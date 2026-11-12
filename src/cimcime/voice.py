@@ -152,6 +152,26 @@ def _clauses(sentence: str) -> list[str]:
     return merged
 
 
+# Inline emotion tags, e.g. "[happy] Harika!". Each applies to the sentence it opens and shifts
+# that sentence's (rate %, pitch Hz) on top of the base voice. edge-tts has no style control for
+# Turkish, so emotion is carried by prosody only.
+EMOTIONS: dict[str, tuple[int, int]] = {
+    "happy": (4, 5),
+    "excited": (8, 9),
+    "curious": (1, 6),
+    "sorry": (-8, -4),
+    "worried": (-5, 2),
+    "proud": (-2, 4),
+    "calm": (-6, -2),
+    "whisper": (-10, -6),
+}
+_EMOTION_TAG = re.compile(r"^\s*\[(" + "|".join(EMOTIONS) + r")\]\s*", re.IGNORECASE)
+
+
+def strip_emotion_tags(text: str) -> str:
+    return re.sub(r"\[(?:" + "|".join(EMOTIONS) + r")\]\s*", "", text, flags=re.IGNORECASE)
+
+
 def split_segments(text: str) -> list[tuple[str, float, int, int]]:
     """Split speech text into (phrase, pause_after_seconds, rate_delta, pitch_delta).
 
@@ -165,8 +185,13 @@ def split_segments(text: str) -> list[tuple[str, float, int, int]]:
     segments: list[tuple[str, float, int, int]] = []
     for part in parts:
         sent = part.strip()
+        emo = _EMOTION_TAG.match(sent)
+        emo_rate, emo_pitch = EMOTIONS[emo.group(1).lower()] if emo else (0, 0)
+        if emo:
+            sent = sent[emo.end():]
         if not sent or not re.search(r"\w", sent):
             continue
+        first_of_sentence = len(segments)
         if sent.endswith("?"):
             end = (0.12, 0, 4)
         elif sent.endswith("!"):
@@ -184,6 +209,9 @@ def split_segments(text: str) -> list[tuple[str, float, int, int]]:
                 segments.append((c, pause, 1, 2))  # continuation: small lift, no slowdown
             else:
                 segments.append((c, *end))
+        for k in range(first_of_sentence, len(segments)):
+            t, p, r, h = segments[k]
+            segments[k] = (t, p, r + emo_rate, h + emo_pitch)
     # a very short opener ("Tamam.", "Merhaba!") gets a shorter beat so it flows into the next line
     return [(t, min(p, 0.05) if len(t) < 12 else p, r, h) for t, p, r, h in segments]
 
@@ -226,7 +254,7 @@ def _prepare_speech_text(text: str) -> str:
 
 
 def _synthesize_local(text: str, aiff: Path) -> None:
-    _run(["say", "-v", LOCAL_FALLBACK_VOICE, "-o", str(aiff), text], timeout=TTS_TIMEOUT)
+    _run(["say", "-v", LOCAL_FALLBACK_VOICE, "-o", str(aiff), strip_emotion_tags(text)], timeout=TTS_TIMEOUT)
 
 
 def synthesize(text: str, out_ogg: Path) -> str:
@@ -312,7 +340,7 @@ def speak(chat_id: str, text: str, caption: str | None = None) -> dict:
     with tempfile.TemporaryDirectory() as tmp:
         ogg = Path(tmp) / "reply.ogg"
         engine = synthesize(text, ogg)
-        message_id = send_voice(chat_id, ogg, caption=caption if caption is not None else text)
+        message_id = send_voice(chat_id, ogg, caption=caption if caption is not None else strip_emotion_tags(text))
     return {"message_id": message_id, "engine": engine}
 
 

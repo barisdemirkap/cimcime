@@ -131,12 +131,35 @@ def _shift(value: str, delta: int) -> str:
     return f"{num:+d}{unit}"
 
 
-def split_segments(text: str) -> list[tuple[str, float, int, int]]:
-    """Split speech text into (sentence, pause_after_seconds, rate_delta, pitch_delta).
+def _clauses(sentence: str) -> list[str]:
+    """Split one sentence at commas/semicolons/colons into phrases, keeping the mark with the
+    phrase. Phrases under three words are merged forward so the speech is not choppy."""
+    raw = [c.strip() for c in re.findall(r"[^,;:]+[,;:]?", sentence) if c.strip()]
+    merged: list[str] = []
+    carry = ""
+    for c in raw:
+        c = f"{carry} {c}".strip()
+        carry = ""
+        if len(c.split()) < 3 and c is not raw[-1]:
+            carry = c
+            continue
+        merged.append(c)
+    if carry:
+        if merged:
+            merged[-1] = f"{merged[-1]} {carry}"
+        else:
+            merged.append(carry)
+    return merged
 
-    Synthesizing sentence by sentence and inserting real silence gives natural pauses, and
-    per-sentence prosody (questions lift, exclamations speed up, trailing '...' slows and falls)
-    avoids a flat monotone."""
+
+def split_segments(text: str) -> list[tuple[str, float, int, int]]:
+    """Split speech text into (phrase, pause_after_seconds, rate_delta, pitch_delta).
+
+    Synthesizing phrase by phrase and inserting real silence gives natural breathing. Within a
+    sentence, phrases ending in a comma/semicolon keep a slight pitch lift and a short pause
+    (the voice is "continuing"); the last phrase settles lower and slower. Questions lift,
+    exclamations speed up, a trailing '...' slows and falls, and long sentences get a longer
+    pause after them."""
     text = text.replace(" - ", ", ").replace("—", ", ")
     parts = re.findall(r"[^.!?…]+(?:\.\.\.|[.!?…])*", text)
     segments: list[tuple[str, float, int, int]] = []
@@ -145,14 +168,22 @@ def split_segments(text: str) -> list[tuple[str, float, int, int]]:
         if not sent or not re.search(r"\w", sent):
             continue
         if sent.endswith("?"):
-            seg = (sent, 0.2, 0, 4)
+            end = (0.24, 0, 4)
         elif sent.endswith("!"):
-            seg = (sent, 0.18, 4, 3)
+            end = (0.2, 4, 3)
         elif sent.endswith(("...", "…")):
-            seg = (sent, 0.3, -8, -2)
+            end = (0.35, -8, -2)
         else:
-            seg = (sent, 0.18, 0, 0)
-        segments.append(seg)
+            end = (0.2, -2, -1)  # a plain statement settles down
+        if len(sent.split()) > 14:
+            end = (end[0] + 0.08, end[1], end[2])
+        clauses = _clauses(sent)
+        for i, c in enumerate(clauses):
+            if i < len(clauses) - 1:
+                pause = 0.28 if c.endswith((";", ":")) else 0.14
+                segments.append((c, pause, 1, 2))  # continuation: small lift, no slowdown
+            else:
+                segments.append((c, *end))
     # a very short opener ("Tamam.", "Merhaba!") gets a shorter beat so it flows into the next line
     return [(t, min(p, 0.12) if len(t) < 12 else p, r, h) for t, p, r, h in segments]
 

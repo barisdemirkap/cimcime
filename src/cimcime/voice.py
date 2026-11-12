@@ -22,7 +22,11 @@ VOICE_DISABLED_FLAG = Path.home() / ".cache" / "cimcime" / "voice.off"
 MODEL_ENV = "CIMCIME_WHISPER_MODEL"
 DEFAULT_MODEL = Path.home() / ".cache" / "cimcime" / "models" / "ggml-large-v3-turbo-q5_0.bin"
 TTS_VOICE_ENV = "CIMCIME_TTS_VOICE"
-DEFAULT_TTS_VOICE = "tr-TR-AhmetNeural"
+DEFAULT_TTS_VOICE = "tr-TR-EmelNeural"  # the only female Turkish neural voice edge-tts offers
+TTS_RATE_ENV = "CIMCIME_TTS_RATE"
+TTS_PITCH_ENV = "CIMCIME_TTS_PITCH"
+DEFAULT_TTS_RATE = "+12%"  # the default pace felt too slow
+DEFAULT_TTS_PITCH = "+6Hz"  # slightly younger, not thin
 LOCAL_FALLBACK_VOICE = "Yelda"
 TELEGRAM_ENV_FILE = Path.home() / ".claude" / "channels" / "telegram" / ".env"
 EDGE_TTS_FALLBACK = Path.home() / ".local" / "bin" / "edge-tts"
@@ -110,7 +114,26 @@ def transcribe(audio_path: Path, language: str = "tr") -> str:
 
 def _synthesize_edge(text: str, voice: str, mp3: Path) -> None:
     edge = _find_tool("edge-tts", EDGE_TTS_FALLBACK)
-    _run([edge, "--voice", voice, "--text", text, "--write-media", str(mp3)], timeout=TTS_TIMEOUT)
+    rate = os.environ.get(TTS_RATE_ENV) or DEFAULT_TTS_RATE
+    pitch = os.environ.get(TTS_PITCH_ENV) or DEFAULT_TTS_PITCH
+    # "=" form so a leading "-" in a value is not parsed as a flag
+    _run(
+        [edge, "--voice", voice, f"--rate={rate}", f"--pitch={pitch}", "--text", text, "--write-media", str(mp3)],
+        timeout=TTS_TIMEOUT,
+    )
+
+
+def _prepare_speech_text(text: str) -> str:
+    """Keep line breaks as pauses: after a sentence mark a newline stays a break, otherwise it
+    becomes a comma, so the voice phrases naturally instead of running lines together."""
+    out = ""
+    for ln in (ln.strip() for ln in text.splitlines()):
+        if not ln:
+            continue
+        if out:
+            out += " " if out[-1] in ".!?:;," else ", "
+        out += " ".join(ln.split())
+    return out
 
 
 def _synthesize_local(text: str, aiff: Path) -> None:
@@ -121,7 +144,7 @@ def synthesize(text: str, out_ogg: Path) -> str:
     """Text -> ogg/opus voice note. Returns which engine produced it. The neural voice sends
     the text to Microsoft's online service; on any failure it falls back to the local macOS voice."""
     _require_enabled()
-    text = " ".join(text.split())
+    text = _prepare_speech_text(text)
     if not text:
         raise VoiceError("nothing to say")
     if len(text) > MAX_TTS_CHARS:

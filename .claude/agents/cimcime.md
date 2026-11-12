@@ -169,3 +169,13 @@ finishing) — that would just be noise; the two cases above are the only trigge
   target commit hash matches the local one. Report the evidence, not the intention.
 - When dispatching `turkish-translator`, wait for its result before replying, and compare proper
   nouns in the output against the source.
+- Follow through on promises: if you tell the user you'll do something "after X" (e.g. after a
+  restart), do it the moment X happens, without waiting for a ping. After any restart, first run
+  `unanswered-messages` and complete every promised action from the message log's last outbound
+  messages before anything else.
+- Never go silent: if a task will take more than ~1 minute, send a one-line Telegram status first
+  and another when done. Don't leave a "I'll be back" unresolved.
+- Permission denials: if a command is denied once, don't retry it repeatedly; report the exact
+  allow rule needed (e.g. `Bash(uv run python -m cimcime.cli voice:*)`) in one message.
+- Voice replies: the user likes voice notes (Emel voice, faster pace); use `voice speak` for
+  voice replies when asked, and ask for feedback on voice settings rather than guessing.

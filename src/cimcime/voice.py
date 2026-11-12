@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -25,8 +26,8 @@ TTS_VOICE_ENV = "CIMCIME_TTS_VOICE"
 DEFAULT_TTS_VOICE = "tr-TR-EmelNeural"  # the only female Turkish neural voice edge-tts offers
 TTS_RATE_ENV = "CIMCIME_TTS_RATE"
 TTS_PITCH_ENV = "CIMCIME_TTS_PITCH"
-DEFAULT_TTS_RATE = "+12%"  # the default pace felt too slow
-DEFAULT_TTS_PITCH = "+6Hz"  # slightly younger, not thin
+DEFAULT_TTS_RATE = "+5%"  # +12% sounded rushed and robotic; brisk but breathable
+DEFAULT_TTS_PITCH = "+3Hz"  # slightly younger, not thin
 LOCAL_FALLBACK_VOICE = "Yelda"
 TELEGRAM_ENV_FILE = Path.home() / ".claude" / "channels" / "telegram" / ".env"
 EDGE_TTS_FALLBACK = Path.home() / ".local" / "bin" / "edge-tts"
@@ -112,15 +113,72 @@ def transcribe(audio_path: Path, language: str = "tr") -> str:
     return text
 
 
-def _synthesize_edge(text: str, voice: str, mp3: Path) -> None:
+def _synthesize_edge(text: str, voice: str, mp3: Path, rate: str | None = None, pitch: str | None = None) -> None:
     edge = _find_tool("edge-tts", EDGE_TTS_FALLBACK)
-    rate = os.environ.get(TTS_RATE_ENV) or DEFAULT_TTS_RATE
-    pitch = os.environ.get(TTS_PITCH_ENV) or DEFAULT_TTS_PITCH
+    rate = rate or os.environ.get(TTS_RATE_ENV) or DEFAULT_TTS_RATE
+    pitch = pitch or os.environ.get(TTS_PITCH_ENV) or DEFAULT_TTS_PITCH
     # "=" form so a leading "-" in a value is not parsed as a flag
     _run(
         [edge, "--voice", voice, f"--rate={rate}", f"--pitch={pitch}", "--text", text, "--write-media", str(mp3)],
         timeout=TTS_TIMEOUT,
     )
+
+
+def _shift(value: str, delta: int) -> str:
+    """Offset a '+N%' / '+NHz' style value by delta, keeping its unit."""
+    unit = "%" if value.endswith("%") else "Hz"
+    num = int(value.rstrip("%Hz").replace("+", "") or 0) + delta
+    return f"{num:+d}{unit}"
+
+
+def split_segments(text: str) -> list[tuple[str, float, int, int]]:
+    """Split speech text into (sentence, pause_after_seconds, rate_delta, pitch_delta).
+
+    Synthesizing sentence by sentence and inserting real silence gives natural pauses, and
+    per-sentence prosody (questions lift, exclamations speed up, trailing '...' slows and falls)
+    avoids a flat monotone."""
+    text = text.replace(" - ", ", ").replace("—", ", ")
+    parts = re.findall(r"[^.!?…]+(?:\.\.\.|[.!?…])*", text)
+    segments: list[tuple[str, float, int, int]] = []
+    for part in parts:
+        sent = part.strip()
+        if not sent or not re.search(r"\w", sent):
+            continue
+        if sent.endswith("?"):
+            seg = (sent, 0.45, 0, 4)
+        elif sent.endswith("!"):
+            seg = (sent, 0.4, 4, 3)
+        elif sent.endswith(("...", "…")):
+            seg = (sent, 0.65, -8, -2)
+        else:
+            seg = (sent, 0.4, 0, 0)
+        segments.append(seg)
+    # a very short opener ("Tamam.", "Merhaba!") gets a shorter beat so it flows into the next line
+    return [(t, min(p, 0.28) if len(t) < 12 else p, r, h) for t, p, r, h in segments]
+
+
+def _synthesize_edge_natural(text: str, voice: str, out: Path, tmp: Path) -> None:
+    segments = split_segments(text)
+    if not segments:
+        raise VoiceError("nothing to say")
+    base_rate = os.environ.get(TTS_RATE_ENV) or DEFAULT_TTS_RATE
+    base_pitch = os.environ.get(TTS_PITCH_ENV) or DEFAULT_TTS_PITCH
+    mp3s: list[Path] = []
+    for i, (sent, _pause, rate_delta, pitch_delta) in enumerate(segments):
+        mp3 = tmp / f"seg{i}.mp3"
+        _synthesize_edge(sent, voice, mp3, rate=_shift(base_rate, rate_delta), pitch=_shift(base_pitch, pitch_delta))
+        mp3s.append(mp3)
+    ffmpeg = _find_tool("ffmpeg")
+    cmd = [ffmpeg, "-y"]
+    for m in mp3s:
+        cmd += ["-i", str(m)]
+    chains = [
+        f"[{i}:a]aresample=48000,aformat=channel_layouts=mono,apad=pad_dur={pause}[a{i}]"
+        for i, (_t, pause, _r, _p) in enumerate(segments)
+    ]
+    concat = "".join(f"[a{i}]" for i in range(len(segments))) + f"concat=n={len(segments)}:v=0:a=1[out]"
+    cmd += ["-filter_complex", ";".join(chains + [concat]), "-map", "[out]", str(out)]
+    _run(cmd, timeout=90)
 
 
 def _prepare_speech_text(text: str) -> str:
@@ -153,9 +211,9 @@ def synthesize(text: str, out_ogg: Path) -> str:
     voice = os.environ.get(TTS_VOICE_ENV) or DEFAULT_TTS_VOICE
     engine = "edge"
     with tempfile.TemporaryDirectory() as tmp:
-        src = Path(tmp) / "speech.mp3"
+        src = Path(tmp) / "speech.wav"
         try:
-            _synthesize_edge(text, voice, src)
+            _synthesize_edge_natural(text, voice, src, Path(tmp))
         except VoiceError:
             engine = "macos-say"
             src = Path(tmp) / "speech.aiff"

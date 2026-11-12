@@ -145,16 +145,16 @@ def split_segments(text: str) -> list[tuple[str, float, int, int]]:
         if not sent or not re.search(r"\w", sent):
             continue
         if sent.endswith("?"):
-            seg = (sent, 0.45, 0, 4)
+            seg = (sent, 0.2, 0, 4)
         elif sent.endswith("!"):
-            seg = (sent, 0.4, 4, 3)
+            seg = (sent, 0.18, 4, 3)
         elif sent.endswith(("...", "…")):
-            seg = (sent, 0.65, -8, -2)
+            seg = (sent, 0.3, -8, -2)
         else:
-            seg = (sent, 0.4, 0, 0)
+            seg = (sent, 0.18, 0, 0)
         segments.append(seg)
     # a very short opener ("Tamam.", "Merhaba!") gets a shorter beat so it flows into the next line
-    return [(t, min(p, 0.28) if len(t) < 12 else p, r, h) for t, p, r, h in segments]
+    return [(t, min(p, 0.12) if len(t) < 12 else p, r, h) for t, p, r, h in segments]
 
 
 def _synthesize_edge_natural(text: str, voice: str, out: Path, tmp: Path) -> None:

@@ -14,6 +14,7 @@ from cimcime.delegation import (
     delegate_summarize,
     log_external_delegation,
 )
+from cimcime.decision_log import DecisionLog
 from cimcime.message_log import Direction, MessageLog, default_path
 from cimcime.roadmap import DEFAULT_RESEARCH_DOC_PATH, expected_topics, topic_entries
 from cimcime.state_store import (
@@ -72,6 +73,16 @@ def build_parser() -> argparse.ArgumentParser:
     recent_messages = subparsers.add_parser("recent-messages")
     recent_messages.add_argument("chat_id")
     recent_messages.add_argument("--limit", type=int, default=20)
+
+    log_decision = subparsers.add_parser("log-decision")
+    log_decision.add_argument("project")
+    log_decision.add_argument("decision")
+    log_decision.add_argument("--rationale", default="")
+    log_decision.add_argument("--decided-at")
+
+    recent_decisions = subparsers.add_parser("recent-decisions")
+    recent_decisions.add_argument("--project")
+    recent_decisions.add_argument("--limit", type=int, default=50)
 
     unanswered_messages = subparsers.add_parser("unanswered-messages")
     unanswered_messages.add_argument("chat_id")
@@ -236,6 +247,16 @@ def _handle_unanswered_messages(store: StateStore, args: argparse.Namespace) -> 
     }
 
 
+def _handle_log_decision(store: StateStore, args: argparse.Namespace) -> dict:
+    DecisionLog().log(args.project, args.decision, args.rationale, args.decided_at)
+    return {"logged": True}
+
+
+def _handle_recent_decisions(store: StateStore, args: argparse.Namespace) -> dict:
+    decisions = DecisionLog().recent(args.project, args.limit)
+    return {"decisions": [d.__dict__ for d in decisions]}
+
+
 _HANDLERS = {
     "get-topic": _handle_get_topic,
     "update-status": _handle_update_status,
@@ -249,6 +270,8 @@ _HANDLERS = {
     "seed": _handle_seed,
     "log-message": _handle_log_message,
     "recent-messages": _handle_recent_messages,
+    "log-decision": _handle_log_decision,
+    "recent-decisions": _handle_recent_decisions,
     "unanswered-messages": _handle_unanswered_messages,
     "delegate-summarize": _handle_delegate_summarize,
     "log-delegation": _handle_log_delegation,

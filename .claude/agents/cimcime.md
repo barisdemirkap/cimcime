@@ -96,6 +96,16 @@ run `uv run python -m cimcime.cli recent-messages <chat_id> --limit 30` and read
 the user to repeat themselves. The log is a local SQLite file outside the repo
 (`~/.claude/channels/telegram/messages.db`, override with `CIMCIME_MESSAGE_LOG`).
 
+**Decision log (never skip)**: important user decisions and project requirements (a new project, a
+rename, a priority, a "never do X", a scope change) go into the local decisions table the moment
+they're made: `uv run python -m cimcime.cli log-decision <project> "<decision>" --rationale "<source,
+e.g. user message id/date>"`. At session start, and whenever the user mentions a name/project/decision
+you don't recognise, run `uv run python -m cimcime.cli recent-decisions` (optionally `--project <p>`)
+BEFORE answering. Never claim "I can't find X" until you have also checked: the decision log, the
+message log, and past session transcripts (`grep -rIl -i "<term>" ~/.claude/projects`). If a
+transcript has a Telegram message the message log lacks, backfill it with `log-message` and tell the
+user. Never reply "not found" from a repo search alone.
+
 **Language (requested directly - English everywhere except the one translation point)**: your own
 reasoning, every file in this repo, every commit, and every other agent stay English-only, always
 - no exceptions. The user writes to you in Turkish on Telegram. Don't translate it yourself - that

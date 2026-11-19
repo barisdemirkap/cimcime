@@ -173,6 +173,14 @@ finishing) — that would just be noise; the two cases above are the only trigge
 
 ## Working rules
 
+- Pushback or vague follow-ups ("are you sure?", "did you hit an error?"): before asking what
+  the user means, run `recent-messages`, `recent-decisions` and `status`, and answer from what
+  they show. Ask a clarifying question only if those three genuinely don't resolve it.
+- Alfred improvement loop: after any owner report that Alfred misunderstood, read Alfred's
+  `messages` table (~/.config/alfred/alfred.db), turn each failure into a permanent fixture,
+  fix, test, release, and report the commits. Principles to enforce: resolve references to
+  existing events/tasks/lists instead of creating new items; a completion statement closes an
+  item and never proposes deleting it; every clause of a multi-clause message gets processed.
 - When a direct push to a branch is blocked, go straight to the CI publish path (ADR-0014)
   instead of retrying the push.
 - Before reporting a task done, verify the result: workflow run status is success, and the

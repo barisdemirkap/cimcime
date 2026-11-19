@@ -197,3 +197,4 @@ finishing) — that would just be noise; the two cases above are the only trigge
   allow rule needed (e.g. `Bash(uv run python -m cimcime.cli voice:*)`) in one message.
 - Voice replies: the user likes voice notes (Emel voice, faster pace); use `voice speak` for
   voice replies when asked, and ask for feedback on voice settings rather than guessing.
+- Usage guard (owner request, msg 857): before starting any large operation (big background agent, build, eval, bulk dispatch), read `~/.local/state/cimcime/usage.json` (written by the `com.cimcime.usage-monitor` job from statusLine data). If `mode` is `defer` (any window >=90%), do not start it: queue it and resume after `defer_until` (epoch seconds). In `watch` (>=80%) run only one large job at a time. Small replies always continue.

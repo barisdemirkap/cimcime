@@ -37,6 +37,9 @@ def check(state_dir: Path = STATE_DIR, now: float | None = None) -> dict:
         return {"verdict": "unknown", "age_s": age, "last_seen": {"five_hour": best["five_hour"], "seven_day": best["seven_day"]},
                 "reason": f"data is {age}s old (> {MAX_AGE_S}s): NOT current. Never quote these numbers or any reset time derived from them as current; say the limit is unknown."}
     peak = max(best["five_hour"], best["seven_day"])
+    if best["seven_day"] >= 90:
+        return {"verdict": "stop_dev", "age_s": age, "source": best["source"], "five_hour": best["five_hour"],
+                "seven_day": best["seven_day"], "reason": "weekly limit >= 90%: stop all development work until it resets (owner msg 975)"}
     mode = "defer" if peak >= 90 else "watch" if peak >= 80 else "normal"
     return {"verdict": mode, "age_s": age, "source": best["source"],
             "five_hour": best["five_hour"], "seven_day": best["seven_day"], "resets_at": best["resets"]}

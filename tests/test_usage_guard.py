@@ -27,3 +27,8 @@ def test_statusline_fresher_wins(tmp_path):
 
 def test_no_data(tmp_path):
     assert check(tmp_path, now=1)["verdict"] == "unknown"
+
+
+def test_weekly_90_stops_dev(tmp_path):
+    _w(tmp_path, "usage.json", {"checked_at": 1000, "percent": {"five_hour": 5, "seven_day": 91}})
+    assert check(tmp_path, now=1100)["verdict"] == "stop_dev"

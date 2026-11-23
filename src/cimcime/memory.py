@@ -4,7 +4,9 @@ A snapshot archives the Claude Code transcript verbatim (compressed) into `memor
 a deterministic handoff summary; the brief a new session starts from combines the latest
 handoff with live decisions, promise candidates and owner preferences. Search is SQLite FTS5
 over Telegram messages, decisions and those summaries only (never the raw transcripts).
-Embeddings are slice 2.
+Embeddings (slice 2) are optional: Ollama `nomic-embed-text` vectors stored in SQLite, with
+hybrid search (slice 3) fusing FTS5 and cosine ranks; without Ollama everything stays keyword-only.
+`checkpoint` (slice 4) is snapshot + embed + handoff brief, triggered by tokens or elapsed time.
 
 Stored text is untrusted data: the brief wraps it as quoted data and never as instructions.
 `memory.db` is a separate file (0600, outside the repo); the message log stays the source of
@@ -19,7 +21,10 @@ import math
 import os
 import re
 import sqlite3
+import struct
 import unicodedata
+import urllib.error
+import urllib.request
 import zlib
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -37,6 +42,13 @@ BRIEF_MAX_TOKENS = 3_000
 DEFAULT_SCOPE = "cimcime"
 # Rows in these scopes never appear in search or a brief unless that scope is asked for by name.
 SENSITIVE_SCOPES = frozenset({"camondo"})
+
+OLLAMA_URL_ENV = "CIMCIME_OLLAMA_URL"
+DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434"
+EMBED_MODEL = "nomic-embed-text"
+_EMBED_BATCH = 32
+_RRF_K = 60
+_CANDIDATES = 50
 
 _CHUNK_CHARS = 1600  # about 400 tokens
 _CHUNK_OVERLAP = 200  # about 50 tokens
@@ -72,6 +84,9 @@ CREATE TABLE IF NOT EXISTS archives(
   scope TEXT NOT NULL, session_id TEXT NOT NULL, transcript_path TEXT NOT NULL,
   start_offset INTEGER NOT NULL, end_offset INTEGER NOT NULL, sha256 TEXT NOT NULL,
   created_at TEXT NOT NULL, data BLOB NOT NULL);
+CREATE TABLE IF NOT EXISTS embeddings(
+  chunk_id INTEGER PRIMARY KEY REFERENCES chunks ON DELETE CASCADE,
+  model TEXT NOT NULL, dim INTEGER NOT NULL, vec BLOB NOT NULL);
 CREATE INDEX IF NOT EXISTS archives_session ON archives(session_id, id);
 """
 
@@ -138,7 +153,7 @@ class Hit:
 class SearchResult:
     mode: str
     hits: list[Hit]
-    note: str = "keyword (FTS5) only; embeddings are slice 2"
+    note: str = "keyword (FTS5) only; no embeddings stored"
 
 
 @dataclass
@@ -151,6 +166,48 @@ class _Scan:
     requests: list[str] = field(default_factory=list)
     files: list[str] = field(default_factory=list)
     last_reply: str = ""
+
+
+class EmbedderUnavailable(RuntimeError):
+    """The embedding backend (Ollama) cannot be reached or gave an unusable answer."""
+
+
+class OllamaEmbedder:
+    """Local Ollama `/api/embed`. Stdlib only; any failure becomes EmbedderUnavailable."""
+
+    def __init__(self, url: str | None = None, model: str = EMBED_MODEL, timeout: float = 30) -> None:
+        self.url = (url or os.environ.get(OLLAMA_URL_ENV) or DEFAULT_OLLAMA_URL).rstrip("/")
+        self.model = model
+        self.timeout = timeout
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        req = urllib.request.Request(
+            f"{self.url}/api/embed",
+            data=json.dumps({"model": self.model, "input": texts}).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                vectors = json.loads(resp.read()).get("embeddings")
+        except (OSError, ValueError, urllib.error.URLError) as exc:
+            raise EmbedderUnavailable(f"{type(exc).__name__}: {exc}") from exc
+        if not isinstance(vectors, list) or len(vectors) != len(texts):
+            raise EmbedderUnavailable("unexpected /api/embed response")
+        return vectors
+
+
+def _pack(vec: list[float]) -> bytes:
+    return struct.pack(f"<{len(vec)}f", *vec)
+
+
+def _unpack(blob: bytes) -> list[float]:
+    return list(struct.unpack(f"<{len(blob) // 4}f", blob))
+
+
+def _cosine(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    na, nb = math.sqrt(sum(x * x for x in a)), math.sqrt(sum(y * y for y in b))
+    return dot / (na * nb) if na and nb else 0.0
 
 
 def _text_of(content) -> str:
@@ -218,7 +275,10 @@ def _one_line(text: str, limit: int = _ITEM_CHARS) -> str:
 
 
 class Memory:
-    def __init__(self, path: Path, now: Callable[[], datetime] | None = None) -> None:
+    def __init__(self, path: Path, now: Callable[[], datetime] | None = None, embedder=None) -> None:
+        """`embedder` (anything with `.model` and `.embed(texts)`) is optional; None keeps
+        memory keyword-only."""
+        self._embedder = embedder
         self._now = now or (lambda: datetime.now(timezone.utc))
         path.parent.mkdir(parents=True, exist_ok=True)
         if not path.exists():
@@ -289,6 +349,7 @@ class Memory:
         cutoff = self._cutoff()
         old = [r[0] for r in self._conn.execute("SELECT id FROM chunks WHERE at < ?", (cutoff,))]
         self._conn.executemany("DELETE FROM chunks_fts WHERE rowid = ?", [(i,) for i in old])
+        self._conn.executemany("DELETE FROM embeddings WHERE chunk_id = ?", [(i,) for i in old])
         self._conn.executemany("DELETE FROM chunks WHERE id = ?", [(i,) for i in old])
         self._conn.execute("DELETE FROM archives WHERE created_at < ?", (cutoff,))
         self._conn.execute("UPDATE summaries SET parent_id = NULL WHERE parent_id IN"
@@ -299,26 +360,81 @@ class Memory:
 
     # --- search ---------------------------------------------------------------------------
 
-    def search(self, query: str, scopes: list[str] | None = None, k: int = 10) -> SearchResult:
-        """BM25 over FTS5. Without `scopes`, every non-sensitive scope is searched; a sensitive
-        scope is searched only when named."""
+    def _scope_filter(self, scopes: list[str] | None) -> tuple[str, list]:
+        if scopes:
+            return f" AND c.scope IN ({','.join('?' * len(scopes))})", [normalize(s) for s in scopes]
+        return " AND c.scope NOT IN (SELECT name FROM scopes WHERE sensitive = 1)", []
+
+    def embed_pending(self, limit: int = 500) -> dict:
+        """Embed chunks that have no vector yet (up to `limit`). Never raises: with no embedder
+        or Ollama down it reports `available: False` and leaves memory keyword-only."""
+        pending_sql = "SELECT id, text FROM chunks WHERE id NOT IN (SELECT chunk_id FROM embeddings) ORDER BY id"
+        rows = self._conn.execute(pending_sql + " LIMIT ?", (limit,)).fetchall()
+        embedded = 0
+        available = self._embedder is not None
+        if available:
+            try:
+                for i in range(0, len(rows), _EMBED_BATCH):
+                    batch = rows[i : i + _EMBED_BATCH]
+                    vectors = self._embedder.embed([t for _, t in batch])
+                    self._conn.executemany(
+                        "INSERT OR REPLACE INTO embeddings(chunk_id, model, dim, vec) VALUES (?, ?, ?, ?)",
+                        [(cid, self._embedder.model, len(v), _pack(v)) for (cid, _), v in zip(batch, vectors)],
+                    )
+                    embedded += len(batch)
+            except EmbedderUnavailable:
+                available = False
+            self._conn.commit()
+        pending = self._conn.execute(f"SELECT COUNT(*) FROM ({pending_sql})").fetchone()[0]
+        return {"available": available, "embedded": embedded, "pending": pending}
+
+    def _fts_ranked(self, query: str, scopes: list[str] | None, k: int) -> list[tuple]:
         match = _fts_query(query)
         if not match:
-            return SearchResult("keyword", [])
+            return []
+        where, params = self._scope_filter(scopes)
         sql = (
-            "SELECT c.text, c.scope, c.source_table, c.source_id, c.at, c.trust, bm25(chunks_fts) AS score"
+            "SELECT c.id, c.text, c.scope, c.source_table, c.source_id, c.at, c.trust, bm25(chunks_fts) AS score"
             " FROM chunks_fts JOIN chunks c ON c.id = chunks_fts.rowid WHERE chunks_fts MATCH ?"
+            + where + " ORDER BY score, c.at DESC LIMIT ?"
         )
-        params: list = [match]
-        if scopes:
-            sql += f" AND c.scope IN ({','.join('?' * len(scopes))})"
-            params += [normalize(s) for s in scopes]
-        else:
-            sql += " AND c.scope NOT IN (SELECT name FROM scopes WHERE sensitive = 1)"
-        sql += " ORDER BY score, c.at DESC LIMIT ?"
-        params.append(k)
-        hits = [Hit(*row[:6], score=round(-row[6], 4)) for row in self._conn.execute(sql, params)]
-        return SearchResult("keyword", hits)
+        return self._conn.execute(sql, [match, *params, k]).fetchall()
+
+    def _vector_ranked(self, qvec: list[float], scopes: list[str] | None, k: int) -> list[tuple]:
+        where, params = self._scope_filter(scopes)
+        rows = self._conn.execute(
+            "SELECT c.id, c.text, c.scope, c.source_table, c.source_id, c.at, c.trust, e.vec"
+            " FROM embeddings e JOIN chunks c ON c.id = e.chunk_id WHERE e.dim = ?" + where,
+            [len(qvec), *params],
+        ).fetchall()
+        scored = sorted(((_cosine(qvec, _unpack(r[7])), r) for r in rows), key=lambda x: (-x[0], x[1][0]))
+        return [r[:7] for sim, r in scored[:k] if sim > 0]
+
+    def search(self, query: str, scopes: list[str] | None = None, k: int = 10) -> SearchResult:
+        """Hybrid search: FTS5 BM25 and, when embeddings exist and Ollama answers, cosine
+        similarity, fused by reciprocal rank (RRF). Falls back to keyword-only otherwise.
+        Without `scopes`, every non-sensitive scope is searched; a sensitive scope only when named."""
+        fts = self._fts_ranked(query, scopes, _CANDIDATES)
+        qvec = None
+        note = "keyword (FTS5) only; no embeddings stored"
+        has_vectors = self._conn.execute("SELECT 1 FROM embeddings LIMIT 1").fetchone() is not None
+        if self._embedder is not None and has_vectors and query.strip():
+            try:
+                qvec = self._embedder.embed([query])[0]
+            except EmbedderUnavailable:
+                note = "keyword (FTS5) only; embedding backend unavailable"
+        if qvec is None:
+            hits = [Hit(*row[1:7], score=round(-row[7], 4)) for row in fts[:k]]
+            return SearchResult("keyword", hits, note)
+        fused: dict[int, float] = {}
+        rows: dict[int, tuple] = {}
+        for ranked in (fts, self._vector_ranked(qvec, scopes, _CANDIDATES)):
+            for rank, row in enumerate(ranked):
+                fused[row[0]] = fused.get(row[0], 0.0) + 1.0 / (_RRF_K + rank + 1)
+                rows[row[0]] = row
+        order = sorted(fused, key=lambda cid: (-fused[cid], rows[cid][5]))[:k]
+        hits = [Hit(*rows[cid][1:7], score=round(fused[cid], 5)) for cid in order]
+        return SearchResult("hybrid", hits, "FTS5 + vector cosine, reciprocal rank fusion")
 
     # --- snapshot -------------------------------------------------------------------------
 
@@ -330,20 +446,22 @@ class Memory:
         scope: str = DEFAULT_SCOPE,
         if_due: bool = False,
         interval: int = SNAPSHOT_INTERVAL_TOKENS,
+        max_age: timedelta | None = None,
     ) -> dict:
         """Checkpoint: archive the transcript bytes since this session's last archive, verbatim,
         and store a handoff summary. With `if_due` (the Stop hook), only when the context grew
-        by `interval` tokens since the last snapshot or since Claude's own last compaction."""
+        by `interval` tokens since the last snapshot or since Claude's own last compaction, or when
+        `max_age` has passed since the last snapshot of this session and there are new bytes."""
         if trigger not in _TRIGGER_KIND:
             raise ValueError(f"unknown trigger {trigger!r}")
         scope = normalize(scope)
         data = transcript.read_bytes()  # FileNotFoundError for a missing transcript
         last = self._conn.execute(
-            "SELECT a.end_offset, s.token_estimate FROM archives a JOIN summaries s ON s.id = a.summary_id"
+            "SELECT a.end_offset, s.token_estimate, a.created_at FROM archives a JOIN summaries s ON s.id = a.summary_id"
             " WHERE a.session_id = ? AND a.transcript_path = ? ORDER BY a.id DESC LIMIT 1",
             (session_id, str(transcript)),
         ).fetchone()
-        start, last_tokens = last if last and last[0] <= len(data) else (0, None)
+        start, last_tokens, last_at = last if last and last[0] <= len(data) else (0, None, None)
         end = data.rfind(b"\n") + 1 or len(data)
         end = max(end, start)
         chunk = data[start:end]
@@ -351,7 +469,10 @@ class Memory:
         tokens = scan.tokens if scan.tokens is not None else (last_tokens or 0) + len(chunk) // 4
         if if_due:
             baseline = scan.compacted_to if scan.compacted_to is not None else (last_tokens or 0)
-            if tokens - baseline < interval:
+            aged = False
+            if max_age is not None and last_at and end > start:
+                aged = self._now().astimezone(timezone.utc) - datetime.fromisoformat(last_at) >= max_age
+            if tokens - baseline < interval and not aged:
                 return {"snapshot": False, "context_tokens": tokens, "baseline": baseline}
 
         self._ensure_scope(scope)
@@ -379,6 +500,29 @@ class Memory:
         self.prune()
         return {"snapshot": True, "summary_id": summary_id, "archive_id": archive_id,
                 "context_tokens": tokens, "bytes": end - start}
+
+    def checkpoint(
+        self,
+        session_id: str,
+        transcript: Path,
+        scope: str = DEFAULT_SCOPE,
+        if_due: bool = True,
+        interval: int = SNAPSHOT_INTERVAL_TOKENS,
+        max_age: timedelta | None = None,
+        trigger: str = "manual",
+        max_tokens: int = BRIEF_MAX_TOKENS,
+    ) -> dict:
+        """Checkpoint-and-rotate: when due (tokens or elapsed time; always when not `if_due`),
+        archive the transcript verbatim, store the handoff summary, embed new chunks (best
+        effort) and return the brief a fresh session should start from. `rotate` tells the
+        caller to end this session and start a new one with `brief`."""
+        result = self.snapshot(session_id, transcript, trigger, scope=scope, if_due=if_due,
+                               interval=interval, max_age=max_age)
+        result["rotate"] = bool(result["snapshot"])
+        if result["rotate"]:
+            result["embedding"] = self.embed_pending()
+            result["brief"] = self.brief(scope, max_tokens)
+        return result
 
     @staticmethod
     def _handoff_body(session_id, transcript, trigger, tokens, scan, archive_id, start, end, created) -> str:

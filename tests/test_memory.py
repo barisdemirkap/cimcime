@@ -294,6 +294,7 @@ def test_brief_is_empty_when_memory_is_empty(mem):
 
 @pytest.fixture
 def cli_env(monkeypatch, tmp_path, sources):
+    monkeypatch.setenv("CIMCIME_OLLAMA_URL", "http://127.0.0.1:1")  # always unreachable
     monkeypatch.setenv("CIMCIME_MEMORY_DB", str(tmp_path / "cli-memory.db"))
     monkeypatch.setenv("CIMCIME_MESSAGE_LOG", str(sources))
     return tmp_path
@@ -362,3 +363,212 @@ def test_cli_snapshot_hook_never_fails_the_session(cli_env, capsys, monkeypatch)
                "hook_event_name": "PreCompact", "trigger": "auto"}
     code, out = _cli(["memory-snapshot", "--hook"], capsys, stdin=json.dumps(payload), monkeypatch=monkeypatch)
     assert code == 0 and out == ""
+
+
+# --- slice 2: embeddings ---------------------------------------------------------------------
+
+VOCAB = ["licence", "mit", "kira", "domain", "limit", "budget", "weekly", "english"]
+
+
+def fake_embed(texts):
+    """Bag-of-keywords vectors: deterministic, no model."""
+    out = []
+    for t in texts:
+        n = memory.normalize(t)
+        out.append([float(n.count(w)) for w in VOCAB] + [0.01])
+    return out
+
+
+class FakeEmbedder:
+    model = "fake"
+
+    def __init__(self):
+        self.calls = 0
+
+    def embed(self, texts):
+        self.calls += 1
+        return fake_embed(texts)
+
+
+class DownEmbedder:
+    model = "down"
+
+    def embed(self, texts):
+        raise memory.EmbedderUnavailable("ollama not running")
+
+
+def test_embed_pending_stores_vectors_once(tmp_path, sources):
+    emb = FakeEmbedder()
+    m = Memory(tmp_path / "e.db", now=lambda: NOW, embedder=emb)
+    m.index(sources)
+    first = m.embed_pending()
+    second = m.embed_pending()
+    assert first == {"available": True, "embedded": 9, "pending": 0}
+    assert second["embedded"] == 0
+
+
+def test_embed_pending_degrades_when_ollama_is_absent(tmp_path, sources):
+    m = Memory(tmp_path / "e.db", now=lambda: NOW, embedder=DownEmbedder())
+    m.index(sources)
+    result = m.embed_pending()
+    assert result["available"] is False and result["embedded"] == 0 and result["pending"] == 9
+
+
+def test_no_embedder_means_embedding_is_off(mem, sources):
+    mem.index(sources)
+    assert mem.embed_pending()["available"] is False
+
+
+def test_ollama_embedder_reports_unreachable_server():
+    emb = memory.OllamaEmbedder(url="http://127.0.0.1:1", timeout=1)
+    with pytest.raises(memory.EmbedderUnavailable):
+        emb.embed(["x"])
+
+
+def test_ollama_embedder_parses_api_embed_response(monkeypatch):
+    import io
+
+    seen = {}
+
+    def fake_urlopen(req, timeout=None):
+        seen["url"] = req.full_url
+        seen["body"] = json.loads(req.data)
+        return io.BytesIO(json.dumps({"embeddings": [[1.0, 0.0], [0.0, 1.0]]}).encode())
+
+    monkeypatch.setattr(memory.urllib.request, "urlopen", fake_urlopen)
+    emb = memory.OllamaEmbedder(url="http://localhost:11434")
+    assert emb.embed(["a", "b"]) == [[1.0, 0.0], [0.0, 1.0]]
+    assert seen["url"].endswith("/api/embed") and seen["body"]["model"] == "nomic-embed-text"
+
+
+# --- slice 3: hybrid search ----------------------------------------------------------------------
+
+def test_search_falls_back_to_keyword_when_embedder_is_down(tmp_path, sources):
+    m = Memory(tmp_path / "e.db", now=lambda: NOW, embedder=FakeEmbedder())
+    m.index(sources)
+    m.embed_pending()
+    m._embedder = DownEmbedder()  # Ollama stopped after vectors were stored
+    result = m.search("licence")
+    assert result.mode == "keyword" and result.hits and "unavailable" in result.note
+
+
+def test_search_is_hybrid_once_vectors_exist(tmp_path, sources):
+    m = Memory(tmp_path / "e.db", now=lambda: NOW, embedder=FakeEmbedder())
+    m.index(sources)
+    m.embed_pending()
+    result = m.search("licence")
+    assert result.mode == "hybrid"
+    assert "Licence is MIT" in result.hits[0].text
+
+
+def test_hybrid_finds_vector_only_matches(tmp_path):
+    path = tmp_path / "s.db"
+    log = MessageLog(path)
+    log.log("1", Direction.INBOUND, "mit mit", message_id="1", sent_at=_iso(1))
+    log.log("1", Direction.INBOUND, "unrelated words here", message_id="2", sent_at=_iso(1))
+    m = Memory(tmp_path / "e.db", now=lambda: NOW, embedder=FakeEmbedder())
+    m.index(path)
+    m.embed_pending()
+    # FTS5 has no hit for "licence"; the vector side still ranks the "mit" message by cosine.
+    texts = [h.text for h in m.search("licence mit").hits]
+    assert texts[0] == "mit mit"
+
+
+def test_hybrid_respects_sensitive_scope_exclusion(tmp_path, sources):
+    m = Memory(tmp_path / "e.db", now=lambda: NOW, embedder=FakeEmbedder())
+    m.index(sources)
+    m.embed_pending()
+    assert all(h.scope != "camondo" for h in m.search("kira budget").hits)
+    assert {h.scope for h in m.search("kira budget", scopes=["camondo"]).hits} == {"camondo"}
+
+
+def test_hybrid_without_vectors_yet_is_keyword(tmp_path, sources):
+    m = Memory(tmp_path / "e.db", now=lambda: NOW, embedder=FakeEmbedder())
+    m.index(sources)
+    assert m.search("licence").mode == "keyword"
+
+
+def test_cli_embed_and_search_degrade_without_ollama(cli_env, capsys):
+    _cli(["memory-index"], capsys)
+    code, out = _cli(["memory-embed"], capsys)
+    assert code == 0 and json.loads(out)["available"] is False
+    _, out = _cli(["memory-search", "licence"], capsys)
+    assert json.loads(out)["mode"] == "keyword"
+
+
+def test_cli_no_embed_flag(cli_env, capsys):
+    _cli(["memory-index"], capsys)
+    code, out = _cli(["memory-search", "licence", "--no-embed"], capsys)
+    assert code == 0 and json.loads(out)["mode"] == "keyword"
+
+
+# --- slice 4: checkpoint and rotate ----------------------------------------------------------------
+
+def test_time_interval_triggers_a_snapshot(tmp_path):
+    clock = [NOW]
+    m = Memory(tmp_path / "c.db", now=lambda: clock[0])
+    t = tmp_path / "t.jsonl"
+    _write_transcript(t, [_user("go"), _assistant("a", tokens=1000)])
+    assert m.snapshot("s1", t, trigger="manual")["snapshot"] is True
+    _write_transcript(t, [_assistant("b", tokens=2000)])
+    clock[0] = NOW + timedelta(minutes=10)
+    assert m.snapshot("s1", t, trigger="stop", if_due=True, max_age=timedelta(minutes=30))["snapshot"] is False
+    clock[0] = NOW + timedelta(minutes=31)
+    assert m.snapshot("s1", t, trigger="stop", if_due=True, max_age=timedelta(minutes=30))["snapshot"] is True
+
+
+def test_time_trigger_needs_new_bytes(tmp_path):
+    clock = [NOW]
+    m = Memory(tmp_path / "c.db", now=lambda: clock[0])
+    t = tmp_path / "t.jsonl"
+    _write_transcript(t, [_assistant("a", tokens=1000)])
+    m.snapshot("s1", t, trigger="manual")
+    clock[0] = NOW + timedelta(hours=5)
+    assert m.snapshot("s1", t, trigger="stop", if_due=True, max_age=timedelta(minutes=30))["snapshot"] is False
+
+
+def test_checkpoint_archives_embeds_and_returns_a_brief(tmp_path, sources):
+    m = Memory(tmp_path / "c.db", now=lambda: NOW, embedder=FakeEmbedder())
+    m.index(sources)
+    t = tmp_path / "t.jsonl"
+    _write_transcript(t, [_user("ship slice four"), _assistant("done", tokens=60000)])
+    result = m.checkpoint("s1", t, if_due=True)
+    assert result["snapshot"] is True and result["rotate"] is True
+    assert m.archive(result["archive_id"]) == t.read_bytes()
+    assert "s1" in result["brief"] and result["embedding"]["available"] is True
+    assert m.search("ship").hits  # the new summary is searchable
+
+
+def test_checkpoint_not_due_does_not_rotate(tmp_path):
+    m = Memory(tmp_path / "c.db", now=lambda: NOW)
+    t = tmp_path / "t.jsonl"
+    _write_transcript(t, [_assistant("a", tokens=1000)])
+    result = m.checkpoint("s1", t, if_due=True)
+    assert result["snapshot"] is False and result["rotate"] is False and "brief" not in result
+
+
+def test_checkpoint_force_ignores_thresholds(tmp_path):
+    m = Memory(tmp_path / "c.db", now=lambda: NOW)
+    t = tmp_path / "t.jsonl"
+    _write_transcript(t, [_assistant("a", tokens=1000)])
+    assert m.checkpoint("s1", t, if_due=False)["rotate"] is True
+
+
+def test_cli_checkpoint(cli_env, capsys):
+    t = cli_env / "t.jsonl"
+    _write_transcript(t, [_user("hello"), _assistant("hi", tokens=60000)])
+    code, out = _cli(["memory-checkpoint", "--session-id", "abc", "--transcript", str(t), "--if-due"], capsys)
+    result = json.loads(out)
+    assert code == 0 and result["rotate"] is True and "abc" in result["brief"]
+    code, out = _cli(["memory-checkpoint", "--session-id", "abc", "--transcript", str(t), "--if-due"], capsys)
+    assert json.loads(out)["rotate"] is False
+
+
+def test_cli_checkpoint_max_age_flag(cli_env, capsys):
+    t = cli_env / "t.jsonl"
+    _write_transcript(t, [_user("hello"), _assistant("hi", tokens=1000)])
+    _cli(["memory-checkpoint", "--session-id", "abc", "--transcript", str(t)], capsys)
+    _write_transcript(t, [_assistant("more", tokens=1100)])
+    _, out = _cli(["memory-checkpoint", "--session-id", "abc", "--transcript", str(t), "--if-due",
+                   "--max-age-minutes", "0"], capsys)
+    assert json.loads(out)["rotate"] is True

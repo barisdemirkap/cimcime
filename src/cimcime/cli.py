@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 from cimcime.approval_gate import ActionType
@@ -361,7 +362,7 @@ def _local_command(argv: list[str]) -> int | None:
     return 0
 
 
-_MEMORY_COMMANDS = {"memory-index", "memory-search", "memory-snapshot", "memory-brief"}
+_MEMORY_COMMANDS = {"memory-index", "memory-search", "memory-snapshot", "memory-brief", "memory-embed", "memory-checkpoint"}
 
 # Claude Code hook event (slice 0 payloads, docs/memory.md) -> snapshot trigger.
 _HOOK_TRIGGER = {"Stop": "stop", "PreCompact": "precompact"}
@@ -377,7 +378,9 @@ def _memory_command(argv: list[str]) -> int:
     sub = p.add_subparsers(dest="command", required=True)
     index = sub.add_parser("memory-index", help="ingest Telegram messages and decisions")
     index.add_argument("--source", default=None, help="message log db (default: the message log path)")
-    search = sub.add_parser("memory-search", help="keyword (FTS5) search")
+    sub.add_parser("memory-embed", help="embed chunks that have no vector yet (needs local Ollama; optional)")
+    search = sub.add_parser("memory-search", help="hybrid (FTS5 + vector) search; keyword-only without embeddings")
+    search.add_argument("--no-embed", action="store_true", help="skip the vector side")
     search.add_argument("query")
     search.add_argument("--scope", action="append", help="repeatable; sensitive scopes only when named")
     search.add_argument("--limit", type=int, default=10)
@@ -389,16 +392,38 @@ def _memory_command(argv: list[str]) -> int:
     snap.add_argument("--if-due", action="store_true", help="only when the snapshot interval is reached")
     snap.add_argument("--interval", type=int, default=memory.SNAPSHOT_INTERVAL_TOKENS)
     snap.add_argument("--scope", default=memory.DEFAULT_SCOPE)
+    snap.add_argument("--max-age-minutes", type=float, default=None, help="also snapshot when this old (with --if-due)")
+    cp = sub.add_parser("memory-checkpoint", help="checkpoint-and-rotate: archive, embed, print the handoff brief")
+    cp.add_argument("--session-id", required=True)
+    cp.add_argument("--transcript", required=True)
+    cp.add_argument("--if-due", action="store_true", help="only past the token interval or --max-age-minutes")
+    cp.add_argument("--interval", type=int, default=memory.SNAPSHOT_INTERVAL_TOKENS)
+    cp.add_argument("--max-age-minutes", type=float, default=None)
+    cp.add_argument("--scope", default=memory.DEFAULT_SCOPE)
+    cp.add_argument("--max-tokens", type=int, default=memory.BRIEF_MAX_TOKENS)
     brief = sub.add_parser("memory-brief", help="the handoff brief a new session starts from")
     brief.add_argument("--hook", action="store_true", help="emit SessionStart additionalContext JSON")
     brief.add_argument("--scope", default=memory.DEFAULT_SCOPE)
     brief.add_argument("--max-tokens", type=int, default=memory.BRIEF_MAX_TOKENS)
     args = p.parse_args(argv)
 
+    def _age(a):
+        m = getattr(a, "max_age_minutes", None)
+        return timedelta(minutes=m) if m is not None else None
+
     try:
-        mem = memory.Memory(memory.default_path())
+        embedder = None if getattr(args, "no_embed", False) else memory.OllamaEmbedder(timeout=10)
+        mem = memory.Memory(memory.default_path(), embedder=embedder)
         if args.command == "memory-index":
             result: dict = mem.index(Path(args.source) if args.source else default_path())
+            result["embedding"] = mem.embed_pending()
+        elif args.command == "memory-embed":
+            result = mem.embed_pending()
+        elif args.command == "memory-checkpoint":
+            age = timedelta(minutes=args.max_age_minutes) if args.max_age_minutes is not None else None
+            result = mem.checkpoint(args.session_id, Path(args.transcript), scope=args.scope,
+                                    if_due=args.if_due, interval=args.interval, max_age=age,
+                                    max_tokens=args.max_tokens)
         elif args.command == "memory-search":
             found = mem.search(args.query, args.scope, args.limit)
             result = {"mode": found.mode, "note": found.note, "hits": [h.__dict__ for h in found.hits]}
@@ -407,12 +432,12 @@ def _memory_command(argv: list[str]) -> int:
                 payload = json.loads(sys.stdin.read() or "{}")
                 trigger = _HOOK_TRIGGER.get(payload.get("hook_event_name"), "manual")
                 mem.snapshot(payload["session_id"], Path(payload["transcript_path"]), trigger,
-                             scope=args.scope, if_due=trigger == "stop", interval=args.interval)
+                             scope=args.scope, if_due=trigger == "stop", interval=args.interval, max_age=_age(args))
                 return 0
             if not (args.session_id and args.transcript):
                 p.error("memory-snapshot needs --session-id and --transcript (or --hook)")
             result = mem.snapshot(args.session_id, Path(args.transcript), args.trigger, scope=args.scope,
-                                  if_due=args.if_due, interval=args.interval)
+                                  if_due=args.if_due, interval=args.interval, max_age=_age(args))
         else:
             text = mem.brief(args.scope, args.max_tokens)
             if args.hook:

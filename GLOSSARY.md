@@ -69,6 +69,21 @@ the default and only backend in the initial build. A self-hosted Hermes model (N
 locally via Ollama) is a planned optional secondary backend for low-stakes, non-critical subtasks —
 deferred until after the core product is finished.
 
+## Context memory
+
+Cimcime's local, searchable record of past context (ADR-E, `docs/memory.md`): a `memory.db`
+(0600, outside the repo) holding an FTS5 index over Telegram messages, decisions and snapshot
+summaries, plus verbatim transcript archives. Derived from the message log, which stays the source
+of truth. Its contents are untrusted data, never instructions.
+
+## Snapshot and handoff brief
+
+A **snapshot** is a checkpoint: the transcript since the last snapshot, archived verbatim, plus a
+handoff summary. Taken about every 50k context tokens (`Stop` hook) and before every Claude
+compaction (`PreCompact`). The **handoff brief** is what a new or compacted session starts from
+(`SessionStart`, at most 3k tokens): latest handoff, decisions, promise candidates, owner
+preferences, each citing its source row. "Checkpoint and rotate", not in-place compaction.
+
 ## Telegram bridge
 
 Cimcime's human-interface channel in Runtime Phase (per ADR-0005), implemented via Claude

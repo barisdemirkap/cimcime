@@ -89,7 +89,9 @@ personal configuration is never committed.
 ## CLI cheatsheet
 
 `cimcime phase-check`, `get-phase`, `set-phase`, `category-status <cat>`, `category-rollup <cat>`,
-`get-topic`, `update-status`, `add-finding`, `doctor`, `init`, `service`, `watchdog`.
+`get-topic`, `update-status`, `add-finding`, `doctor`, `init`, `service`, `watchdog`,
+`memory-index`, `memory-search`, `memory-snapshot`, `memory-brief` (context memory, see
+[docs/memory.md](docs/memory.md)).
 
 ## Safety notes
 

@@ -298,6 +298,8 @@ def _topic_to_dict(record: TopicRecord) -> dict:
 
 def _local_command(argv: list[str]) -> int | None:
     """Commands that need no GitHub store (and so no configured repo)."""
+    if argv and argv[0] in _MEMORY_COMMANDS:
+        return _memory_command(argv)
     if not argv or argv[0] not in {"doctor", "init", "service", "watchdog", "status", "voice", "usage-check"}:
         return None
     if argv[0] == "voice":
@@ -356,6 +358,76 @@ def _local_command(argv: list[str]) -> int | None:
     except (ValueError, FileExistsError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+    return 0
+
+
+_MEMORY_COMMANDS = {"memory-index", "memory-search", "memory-snapshot", "memory-brief"}
+
+# Claude Code hook event (slice 0 payloads, docs/memory.md) -> snapshot trigger.
+_HOOK_TRIGGER = {"Stop": "stop", "PreCompact": "precompact"}
+
+
+def _memory_command(argv: list[str]) -> int:
+    """Context memory (ADR-E, docs/memory.md). Needs no GitHub store. Prints JSON, except in
+    --hook mode, where output follows the Claude Code hook contract and errors never fail the
+    session (they go to stderr, exit 0)."""
+    from cimcime import memory
+
+    p = argparse.ArgumentParser(prog="cimcime")
+    sub = p.add_subparsers(dest="command", required=True)
+    index = sub.add_parser("memory-index", help="ingest Telegram messages and decisions")
+    index.add_argument("--source", default=None, help="message log db (default: the message log path)")
+    search = sub.add_parser("memory-search", help="keyword (FTS5) search")
+    search.add_argument("query")
+    search.add_argument("--scope", action="append", help="repeatable; sensitive scopes only when named")
+    search.add_argument("--limit", type=int, default=10)
+    snap = sub.add_parser("memory-snapshot", help="archive the transcript and store a handoff summary")
+    snap.add_argument("--hook", action="store_true", help="read a Stop/PreCompact hook payload from stdin")
+    snap.add_argument("--session-id")
+    snap.add_argument("--transcript")
+    snap.add_argument("--trigger", choices=["manual", "stop", "precompact"], default="manual")
+    snap.add_argument("--if-due", action="store_true", help="only when the snapshot interval is reached")
+    snap.add_argument("--interval", type=int, default=memory.SNAPSHOT_INTERVAL_TOKENS)
+    snap.add_argument("--scope", default=memory.DEFAULT_SCOPE)
+    brief = sub.add_parser("memory-brief", help="the handoff brief a new session starts from")
+    brief.add_argument("--hook", action="store_true", help="emit SessionStart additionalContext JSON")
+    brief.add_argument("--scope", default=memory.DEFAULT_SCOPE)
+    brief.add_argument("--max-tokens", type=int, default=memory.BRIEF_MAX_TOKENS)
+    args = p.parse_args(argv)
+
+    try:
+        mem = memory.Memory(memory.default_path())
+        if args.command == "memory-index":
+            result: dict = mem.index(Path(args.source) if args.source else default_path())
+        elif args.command == "memory-search":
+            found = mem.search(args.query, args.scope, args.limit)
+            result = {"mode": found.mode, "note": found.note, "hits": [h.__dict__ for h in found.hits]}
+        elif args.command == "memory-snapshot":
+            if args.hook:
+                payload = json.loads(sys.stdin.read() or "{}")
+                trigger = _HOOK_TRIGGER.get(payload.get("hook_event_name"), "manual")
+                mem.snapshot(payload["session_id"], Path(payload["transcript_path"]), trigger,
+                             scope=args.scope, if_due=trigger == "stop", interval=args.interval)
+                return 0
+            if not (args.session_id and args.transcript):
+                p.error("memory-snapshot needs --session-id and --transcript (or --hook)")
+            result = mem.snapshot(args.session_id, Path(args.transcript), args.trigger, scope=args.scope,
+                                  if_due=args.if_due, interval=args.interval)
+        else:
+            text = mem.brief(args.scope, args.max_tokens)
+            if args.hook:
+                if text:
+                    print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart",
+                                                             "additionalContext": text}}))
+                return 0
+            result = {"brief": text, "tokens": memory.estimate_tokens(text)}
+    except Exception as exc:  # noqa: BLE001 - a hook must never take the session down
+        print(f"cimcime memory: {type(exc).__name__}: {exc}", file=sys.stderr)
+        if getattr(args, "hook", False):
+            return 0
+        print(json.dumps({"ok": False, "error": f"{type(exc).__name__}: {exc}"}))
+        return 1
+    print(json.dumps(result, ensure_ascii=False))
     return 0
 
 

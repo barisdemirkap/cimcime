@@ -44,7 +44,23 @@ def run_checks() -> list[Check]:
         except (OSError, subprocess.SubprocessError):
             ok = False
         checks.append(Check("gh auth", ok, "logged in" if ok else "run `gh auth login`"))
+    if sys.platform.startswith("linux"):
+        checks += linux_vm_checks()
     return checks
+
+
+def linux_vm_checks(which=shutil.which, run=subprocess.run, user: str | None = None) -> list[Check]:
+    """Extra checks for a headless Linux VM: the channel runs under `script` in a systemd user service that must outlive logout."""
+    import getpass
+    out = [Check("script", bool(which("script")), "util-linux `script` gives claude a pty" if which("script") else "not found. Install util-linux (apt install bsdutils)")]
+    try:
+        r = run(["loginctl", "show-user", user or getpass.getuser(), "--property=Linger"], capture_output=True, text=True, timeout=15)
+        linger = "Linger=yes" in r.stdout
+    except (OSError, subprocess.SubprocessError):
+        linger = False
+    out.append(Check("linger", linger, "the service survives logout" if linger else "run `loginctl enable-linger $USER` or the service stops when you log out"))
+    out.append(Check("claude auth", True, "on a VM sign in once with `claude` (device/URL login) or export ANTHROPIC_API_KEY (spend: your decision)", required=False))
+    return out
 
 
 def format_report(checks: list[Check]) -> str:

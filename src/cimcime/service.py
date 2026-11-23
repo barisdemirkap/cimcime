@@ -196,6 +196,7 @@ def install(spec: Spec | None = None) -> list[str]:
             done.append(str(unit_dir / name))
         _run(["systemctl", "--user", "daemon-reload"])
         _run(["systemctl", "--user", "enable", "--now", f"{SYSTEMD_CHANNEL}.service", f"{SYSTEMD_WATCHDOG}.timer"])
+        _run(["loginctl", "enable-linger", os.environ.get("USER") or ""], check=False)   # a headless VM: keep the user service alive after logout
     elif sys.platform == "win32":
         _run(["schtasks", "/Create", "/F", "/TN", WIN_CHANNEL, "/SC", "ONLOGON", "/TR", windows_channel_cmd(spec)])
         _run(["schtasks", "/Create", "/F", "/TN", WIN_WATCHDOG, "/SC", "MINUTE", "/MO", "5", "/TR", f'"{spec.cimcime}" watchdog'])

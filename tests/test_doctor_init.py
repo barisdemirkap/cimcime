@@ -38,3 +38,21 @@ def test_linux_vm_checks_flag_missing_script_and_linger():
     assert "enable-linger" in bad[1].detail
     good = doctor.linux_vm_checks(which=lambda b: "/usr/bin/script", run=lambda *a, **k: types.SimpleNamespace(stdout="Linger=yes\n"), user="u")
     assert all(c.ok for c in good) and not good[2].required
+
+
+def test_approval_hook_check_reports_installed_or_not(tmp_path):
+    import json
+    from cimcime.doctor import approval_hook_check
+
+    home, cwd = tmp_path / "h", tmp_path / "c"
+    (cwd / ".claude").mkdir(parents=True)
+    missing = approval_hook_check(home=home, cwd=cwd)
+    assert not missing.ok and not missing.required and "docs/approval-hook.md" in missing.detail
+    cfg = {"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "python3 -I x/approval_hook.py || exit 2"}]}]}}
+    (cwd / ".claude" / "settings.json").write_text(json.dumps(cfg))
+    assert approval_hook_check(home=home, cwd=cwd).ok
+    cfg["hooks"]["PreToolUse"][0]["matcher"] = "Read"
+    (cwd / ".claude" / "settings.json").write_text(json.dumps(cfg))
+    assert not approval_hook_check(home=home, cwd=cwd).ok
+    (cwd / ".claude" / "settings.json").write_text("{not json")
+    assert not approval_hook_check(home=home, cwd=cwd).ok

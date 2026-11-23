@@ -1,9 +1,11 @@
 """`cimcime doctor`: check the prerequisites Cimcime needs, on any OS."""
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 from dataclasses import dataclass
 
 
@@ -44,9 +46,31 @@ def run_checks() -> list[Check]:
         except (OSError, subprocess.SubprocessError):
             ok = False
         checks.append(Check("gh auth", ok, "logged in" if ok else "run `gh auth login`"))
+    checks.append(approval_hook_check())
     if sys.platform.startswith("linux"):
         checks += linux_vm_checks()
     return checks
+
+
+def approval_hook_check(home: Path | None = None, cwd: Path | None = None) -> Check:
+    """Is the ADR-0016 approval-gate hook wired into a Claude Code settings file? (warn only: installing is the owner's step)"""
+    home, cwd = home or Path.home(), cwd or Path.cwd()
+    for path in (cwd / ".claude" / "settings.local.json", cwd / ".claude" / "settings.json", home / ".claude" / "settings.json"):
+        try:
+            hooks = json.loads(path.read_text()).get("hooks", {}).get("PreToolUse", [])
+            for entry in hooks:
+                if "Bash" in str(entry.get("matcher", "")) and any(
+                    "approval_hook" in str(h.get("command", "")) for h in entry.get("hooks", [])
+                ):
+                    return Check("approval hook", True, f"installed in {path}", required=False)
+        except (OSError, ValueError, AttributeError, TypeError):
+            continue
+    return Check(
+        "approval hook",
+        False,
+        "not installed: agent Bash calls are not gated. See docs/approval-hook.md (guard against model mistakes, not a security boundary)",
+        required=False,
+    )
 
 
 def linux_vm_checks(which=shutil.which, run=subprocess.run, user: str | None = None) -> list[Check]:

@@ -42,6 +42,13 @@ autonomy. Exactly three gates exist:
 Outside these three, Cimcime acts autonomously using logic and analysis; the standing rule is that
 **execution ("how") is Cimcime's job, rationale ("why") is the user's**.
 
+## Approval hook
+
+The Claude Code `PreToolUse` hook (`src/cimcime/approval_hook.py`, ADR-0016) that blocks agent Bash
+calls crossing an **approval gate** and names the gate. A guard against model mistakes, never a
+security boundary: it fails closed, but a same-user process can bypass it. `cimcime doctor`
+reports whether it is installed; installing it is the owner's step.
+
 ## Learning Phase (Phase 1)
 
 The bootstrap period during which Cimcime runs continuously on its host machine, working

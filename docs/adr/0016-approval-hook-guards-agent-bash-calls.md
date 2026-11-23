@@ -5,8 +5,7 @@ status: accepted
 # A Claude Code PreToolUse hook enforces the approval gates on agent Bash calls, as a guard against model mistakes
 
 ADR-0001 defines three approval gates (production deploy, real third-party communication, real
-spend or account changes). Until now they were advisory text in agent instructions. 
-directive asks for enforcement where the agent acts: its shell.
+spend or account changes). Until now they were advisory text in agent instructions. Enforcing them where the agent acts, its shell, is the next step.
 
 `src/cimcime/approval_hook.py` is a Claude Code `PreToolUse` hook with a `Bash` matcher.
 

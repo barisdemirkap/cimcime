@@ -28,8 +28,11 @@ IDLE_RESTART_AFTER_MIN = 15  # unanswered this long AND zero activity for IDLE_A
 IDLE_AFTER_MIN = 5  # no terminal output and no transcript write for this long = idle
 # A session that is still producing output or writing its transcript is WORKING (long research,
 # subagents): silence toward the user is not a hang, and a restart would kill that work.
+# Terminal captures lose their spaces once cursor-move escapes are stripped ("Entertoconfirm"),
+# so every gap is \s*. "enter to confirm" is claude's startup dialogs (Chrome extension, trust).
 PROMPT_RE = re.compile(
-    r"do you want to proceed|password:|\(y/n\)|\[y/n\]|permission to|allow this|esc to cancel",
+    r"do\s*you\s*want\s*to\s*proceed|password:|\(y/n\)|\[y/n\]|permission\s*to|allow\s*this"
+    r"|esc\s*to\s*cancel|enter\s*to\s*confirm|esc\s*to\s*keep",
     re.I,
 )
 ACCESS_FILE = Path.home() / ".claude" / "channels" / "telegram" / "access.json"

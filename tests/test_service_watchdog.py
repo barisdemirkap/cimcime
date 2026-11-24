@@ -93,3 +93,14 @@ def test_screen_prompt_alert_once_per_stall():
     assert not watchdog.screen_prompt_alert("prompt", {"screen_alert": "k1"}, "k1")
     assert not watchdog.screen_prompt_alert("idle", {}, "k1")
     assert not watchdog.screen_prompt_alert(None, {}, "k1")
+
+
+def test_stuck_signal_recognises_spaceless_startup_dialog(tmp_path):
+    """The 2026-11-24 outage: the Chrome-extension dialog, captured with its spaces stripped."""
+    import os
+    f = tmp_path / "channel.out"
+    f.write_text("ClaudeinChromeextensiondetected\n❯No,keepbrowsertoolsoff\nEntertoconfirm·Esctokeepbrowsertoolsoff")
+    now = datetime.now(timezone.utc)
+    old = now.timestamp() - 600
+    os.utime(f, (old, old))
+    assert watchdog.stuck_signal(f, now) == "prompt"

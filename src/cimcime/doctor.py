@@ -47,6 +47,7 @@ def run_checks() -> list[Check]:
             ok = False
         checks.append(Check("gh auth", ok, "logged in" if ok else "run `gh auth login`"))
     checks.append(approval_hook_check())
+    checks += data_protection_checks()
     if sys.platform.startswith("linux"):
         checks += linux_vm_checks()
     return checks
@@ -71,6 +72,41 @@ def approval_hook_check(home: Path | None = None, cwd: Path | None = None) -> Ch
         "not installed: agent Bash calls are not gated. See docs/approval-hook.md (guard against model mistakes, not a security boundary)",
         required=False,
     )
+
+
+def _private_perms_check(path: Path) -> Check | None:
+    """Group/other access to a private data file or dir is a leak (warn only)."""
+    if not path.exists():
+        return None
+    mode = path.stat().st_mode & 0o777
+    ok = mode & 0o077 == 0
+    fix = "chmod 700" if path.is_dir() else "chmod 600"
+    return Check(f"perms {path.name}", ok, f"{oct(mode)[2:]}" + ("" if ok else f" is group/other accessible: run `{fix} {path}`"), required=False)
+
+
+def data_protection_checks(home: Path | None = None, platform: str | None = None, run=subprocess.run) -> list[Check]:
+    """Directive 7: disk encryption + private permissions on local data (all warn-only; fixing is the owner's step)."""
+    home, platform = home or Path.home(), platform or sys.platform
+    out: list[Check] = []
+    if platform == "darwin":
+        try:
+            r = run(["fdesetup", "status"], capture_output=True, text=True, timeout=15)
+            on = "FileVault is On" in r.stdout
+        except (OSError, subprocess.SubprocessError):
+            on = False
+        out.append(Check("FileVault", on, "disk encryption on" if on else "off or unknown: enable it in System Settings so local databases are encrypted at rest", required=False))
+    elif platform.startswith("linux"):
+        try:
+            r = run(["lsblk", "-o", "TYPE"], capture_output=True, text=True, timeout=15)
+            on = "crypt" in r.stdout
+        except (OSError, subprocess.SubprocessError):
+            on = False
+        out.append(Check("disk encryption", on, "LUKS volume found" if on else "no LUKS/crypt volume detected: enable full-disk encryption", required=False))
+    for rel in (".claude/channels/telegram/messages.db", ".config/alfred/alfred.db", ".local/state/cimcime"):
+        c = _private_perms_check(home / rel)
+        if c:
+            out.append(c)
+    return out
 
 
 def linux_vm_checks(which=shutil.which, run=subprocess.run, user: str | None = None) -> list[Check]:

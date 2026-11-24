@@ -93,6 +93,10 @@ personal configuration is never committed.
 `memory-index`, `memory-search`, `memory-snapshot`, `memory-brief` (context memory, see
 [docs/memory.md](docs/memory.md)).
 
+## Known issues
+
+See [docs/SETUP-NOTES.md](docs/SETUP-NOTES.md) for known issues and hardening steps (restart/permission prompts, approval hook, doctor checks).
+
 ## Safety notes
 
 - Cimcime acts autonomously; review `.claude/settings.json` style permissions before running it on

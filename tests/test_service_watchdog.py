@@ -99,7 +99,7 @@ def test_stuck_signal_recognises_spaceless_startup_dialog(tmp_path):
     """The 2026-11-24 outage: the Chrome-extension dialog, captured with its spaces stripped."""
     import os
     f = tmp_path / "channel.out"
-    f.write_text("ClaudeinChromeextensiondetected\n❯No,keepbrowsertoolsoff\nEntertoconfirm·Esctokeepbrowsertoolsoff")
+    f.write_text("ClaudeinChromeextensiondetected\n❯No,keepbrowsertoolsoff\nEntertoconfirm·Esctokeepbrowsertoolsoff", encoding="utf-8")
     now = datetime.now(timezone.utc)
     old = now.timestamp() - 600
     os.utime(f, (old, old))

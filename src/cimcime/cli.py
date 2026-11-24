@@ -301,6 +301,8 @@ def _local_command(argv: list[str]) -> int | None:
     """Commands that need no GitHub store (and so no configured repo)."""
     if argv and argv[0] in _MEMORY_COMMANDS:
         return _memory_command(argv)
+    if argv and argv[0] in {"export-data", "delete-data"}:
+        return _owner_data_command(argv)
     if not argv or argv[0] not in {"doctor", "init", "service", "watchdog", "status", "voice", "usage-check"}:
         return None
     if argv[0] == "voice":
@@ -359,6 +361,28 @@ def _local_command(argv: list[str]) -> int | None:
     except (ValueError, FileExistsError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+    return 0
+
+
+def _owner_data_command(argv: list[str]) -> int:
+    from pathlib import Path
+
+    from cimcime import owner_data
+
+    p = argparse.ArgumentParser(prog="cimcime")
+    sub = p.add_subparsers(dest="command", required=True)
+    e = sub.add_parser("export-data", help="write messages and decisions to a 0600 JSON file")
+    e.add_argument("out")
+    d = sub.add_parser("delete-data", help="delete one chat's messages (and optionally all decisions)")
+    d.add_argument("--chat-id")
+    d.add_argument("--decisions", action="store_true")
+    d.add_argument("--yes", action="store_true")
+    args = p.parse_args(argv)
+    if args.command == "export-data":
+        result = owner_data.export_data(Path(args.out))
+    else:
+        result = owner_data.delete_data(args.chat_id, args.decisions, args.yes)
+    print(json.dumps(result))
     return 0
 
 

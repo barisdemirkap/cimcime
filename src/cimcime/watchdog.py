@@ -32,6 +32,7 @@ PROMPT_RE = re.compile(
     r"do you want to proceed|password:|\(y/n\)|\[y/n\]|permission to|allow this|esc to cancel",
     re.I,
 )
+ACCESS_FILE = Path.home() / ".claude" / "channels" / "telegram" / "access.json"
 ENV_FILE = Path.home() / ".claude" / "channels" / "telegram" / ".env"
 
 
@@ -117,6 +118,24 @@ def stuck_signal(out_file: Path | list[Path], now: datetime | None = None) -> st
     return "prompt" if PROMPT_RE.search(text) else "idle"
 
 
+def owner_chat_id() -> str | None:
+    """First allowlisted Telegram chat, for alerts not tied to an unanswered message."""
+    try:
+        ids = json.loads(ACCESS_FILE.read_text(encoding="utf-8")).get("allowFrom") or []
+        return str(ids[0]) if ids else None
+    except (OSError, ValueError):
+        return None
+
+
+def screen_prompt_alert(signal: str | None, state: dict, key: str) -> bool:
+    """Alert once per stall when a prompt is on screen, even with no unanswered message.
+
+    A session blocked at boot never logs the inbound message, so the unanswered-message
+    path is blind to it (2026-11-24 power-cut incident).
+    """
+    return signal == "prompt" and state.get("screen_alert") != key
+
+
 def read_token() -> str | None:
     try:
         text = ENV_FILE.read_text(encoding="utf-8")
@@ -177,6 +196,18 @@ def run_once() -> str:
             stuck = "restarted" if service.restart() else "restart-failed"
             state["restarted"] = un.key
         state_file.write_text(json.dumps(state), encoding="utf-8")
+
+    else:
+        out = logs / "launchd-telegram-channel.out"
+        signal = stuck_signal(activity_files([out, logs / "channel.out"]))
+        key = f"{out.stat().st_mtime:.0f}" if out.exists() else "none"
+        chat = owner_chat_id()
+        if token and chat and screen_prompt_alert(signal, state, key):
+            send_alert(token, chat, "Cimcime's session shows a permission/confirmation prompt and has gone "
+                       "quiet. It may be waiting for a manual yes on the Mac mini.")
+            state["screen_alert"] = key
+            stuck = "alerted-prompt"
+            state_file.write_text(json.dumps(state), encoding="utf-8")
 
     line = f"{datetime.now(timezone.utc):%Y-%m-%dT%H:%M:%SZ} service={svc} telegram_api={api} stuck={stuck}"
     log = logs / "health.log"

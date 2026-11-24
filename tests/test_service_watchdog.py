@@ -86,3 +86,10 @@ def test_fresh_transcript_means_busy_even_if_terminal_silent(tmp_path):
     os.utime(log, (old, old))
     assert watchdog.stuck_signal([out, log]) == "idle"
     assert watchdog.stuck_signal([tmp_path / "missing"]) is None
+
+
+def test_screen_prompt_alert_once_per_stall():
+    assert watchdog.screen_prompt_alert("prompt", {}, "k1")
+    assert not watchdog.screen_prompt_alert("prompt", {"screen_alert": "k1"}, "k1")
+    assert not watchdog.screen_prompt_alert("idle", {}, "k1")
+    assert not watchdog.screen_prompt_alert(None, {}, "k1")

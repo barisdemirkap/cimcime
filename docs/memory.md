@@ -156,3 +156,9 @@ file instead.
 - Embeddings: optional Ollama `nomic-embed-text` (`CIMCIME_OLLAMA_URL`, default `127.0.0.1:11434`), float32 vectors in the `embeddings` table of `memory.db`. `cimcime memory-embed` (also run by `memory-index`) fills missing vectors; with Ollama absent it reports `available: false` and nothing else changes.
 - Hybrid search: `cimcime memory-search` fuses FTS5 BM25 and cosine ranks by reciprocal rank fusion (k=60) over messages, decisions and summaries; sensitive-scope exclusion still applies. `mode` is `hybrid` or `keyword`; `--no-embed` forces keyword.
 - Checkpoint and rotate: `cimcime memory-checkpoint --session-id S --transcript T [--if-due] [--interval 50000] [--max-age-minutes N]` archives verbatim, stores the handoff summary, embeds, and returns `{rotate, brief}`; a due check passes on tokens or elapsed time. `memory-snapshot --max-age-minutes` shares the time trigger.
+
+## Concurrency and evaluation
+
+`memory.db` runs in WAL mode with a 30 s busy timeout and `snapshot()` holds the write lock for its whole
+read-then-write sequence, so Stop and PreCompact firing together are safe (ADR-0017). Retrieval changes are
+judged by `cimcime eval-memory` against pre-registered gates: see `docs/memory-eval.md`.

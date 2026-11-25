@@ -1,3 +1,4 @@
+import sqlite3
 import json
 import urllib.error
 from unittest.mock import patch
@@ -7,6 +8,7 @@ import pytest
 from cimcime.approval_gate import ActionType
 from cimcime.cli import run
 from cimcime.delegation import (
+    audit_safe_detail,
     Backend,
     BackendUnavailable,
     DelegationLog,
@@ -168,4 +170,15 @@ def test_cli_log_delegation_then_recent_delegations_round_trips(tmp_path, monkey
     run(["log-delegation", "haiku", "--detail", "classified a message"], store)
     result = json.loads(run(["recent-delegations"], store))
 
-    assert [d["detail"] for d in result["delegations"]] == ["classified a message"]
+    assert [d["detail"] for d in result["delegations"]] == [audit_safe_detail("classified a message")]
+
+
+def test_delegation_log_detail_never_stores_free_text(tmp_path):
+    log = DelegationLog(tmp_path / "delegations.db")
+    log.record("summarize", Backend.HAIKU, "ok", detail="please summarise my private note")
+    log.record("summarize", Backend.HAIKU, "ok", detail="timeout")
+    older, newest = log.recent()
+    assert "private" not in newest["detail"] and newest["detail"].startswith("len=")
+    assert older["detail"] == "timeout"
+    raw = sqlite3.connect(tmp_path / "delegations.db").execute("SELECT detail FROM delegations").fetchall()
+    assert not any("private" in (r[0] or "") for r in raw)

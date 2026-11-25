@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import re
 import sqlite3
 import urllib.error
 import urllib.request
@@ -62,6 +64,19 @@ def default_qwen_url() -> str:
     return os.environ.get(QWEN_URL_ENV_VAR, DEFAULT_QWEN_URL)
 
 
+_CODE_RE = re.compile(r"^[A-Za-z0-9_.:=-]{1,40}$")
+
+
+def audit_safe_detail(detail: str | None) -> str | None:
+    """The delegation log is an audit trail: it keeps ids, hashes and short machine codes, never message text.
+    A short code (letters, digits, _ . : = -) passes through; anything else becomes 'len=N h:<12 hex sha256>'."""
+    if detail is None or detail == "":
+        return detail
+    if _CODE_RE.match(detail):
+        return detail
+    return f"len={len(detail)} h:{hashlib.sha256(detail.encode('utf-8')).hexdigest()[:12]}"
+
+
 class DelegationLog:
     """Append-only record of every delegation decision (ADR-0012) - task type,
     backend, when, and how it went. This is what the (later, data-gated)
@@ -87,7 +102,7 @@ class DelegationLog:
     def record(self, task_type: str, backend: Backend, outcome: str, detail: str | None = None) -> None:
         self._conn.execute(
             "INSERT INTO delegations (task_type, backend, decided_at, outcome, detail) VALUES (?, ?, ?, ?, ?)",
-            (task_type, backend.value, datetime.now(timezone.utc).isoformat(), outcome, detail),
+            (task_type, backend.value, datetime.now(timezone.utc).isoformat(), outcome, audit_safe_detail(detail)),
         )
         self._conn.commit()
 
@@ -156,7 +171,7 @@ def delegate_summarize(
     try:
         summary = summarize_with_qwen(text, base_url=base_url)
     except BackendUnavailable as exc:
-        log.record("summarize", Backend.QWEN_LOCAL, "backend_unavailable", str(exc))
+        log.record("summarize", Backend.QWEN_LOCAL, "backend_unavailable", type(exc).__name__)
         raise
     log.record("summarize", Backend.QWEN_LOCAL, "ok")
     return summary

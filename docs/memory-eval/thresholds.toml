@@ -1,0 +1,127 @@
+# Pre-registered thresholds for `cimcime eval-memory` (ADR-0017). Written and committed BEFORE the
+# first measured run; change a number only in a commit that says why, never after seeing a result.
+# A gate passes when every listed condition holds; "skipped" means a needed variant was not run.
+# CIs are percentile paired bootstrap over questions. The synthetic fixture checks the harness; the
+# real decisions (hybrid on/off, slice-4 flags on/off) are taken on the owner-approved gold set
+# with its own pinned copy of this file.
+
+[run]
+seed = 20261125
+bootstrap_resamples = 2000
+ci_level = 0.95
+k = 10
+
+# Frozen fixtures: file name -> sha256 of its bytes. A mismatch aborts the run (exit 2).
+[fixtures]
+"synthetic-v1.json" = "PLACEHOLDER"
+
+[variants.keyword]            # baseline: FTS5 BM25, no refinements
+mode = "keyword"
+
+[variants.hybrid]             # FTS5 + vector cosine fused by RRF (needs an embedder)
+mode = "hybrid"
+
+[variants.abstain]            # slice 4a: "no evidence" when the best hit covers < 50% of query words
+mode = "keyword"
+abstain_min_coverage = 0.5
+
+[variants.neighbours]         # slice 4b: append the adjacent message chunk on each side of a hit
+mode = "keyword"
+neighbours = 1
+
+[variants.recency]            # slice 4c: scores within 15% of the top form a band, newest first inside it
+mode = "keyword"
+recency_tolerance = 0.15
+
+[variants.slice4]             # all three together
+mode = "keyword"
+abstain_min_coverage = 0.5
+neighbours = 1
+recency_tolerance = 0.15
+
+# --- gates ------------------------------------------------------------------------------------
+
+[[gates]]
+id = "baseline-floor"
+description = "keyword search finds at least 60% of gold rows within 10 (smoke floor)"
+candidate = "keyword"
+metric = "recall@10"
+min = 0.60
+
+[[gates]]
+id = "adr-e-hybrid-vs-fts5"
+description = "ADR-E embedding gate: RRF recall@5 at least 10 points above FTS5, CI above zero, never degraded"
+candidate = "hybrid"
+baseline = "keyword"
+metric = "recall@5"
+min_delta = 0.10
+require_ci_lower_above = 0.0
+max_degraded_rate = 0.0
+
+[[gates]]
+id = "abstain-detects-absence"
+description = "abstention_recall improves by at least 50 points, CI above zero"
+candidate = "abstain"
+baseline = "keyword"
+metric = "abstention_recall"
+min_delta = 0.50
+require_ci_lower_above = 0.0
+
+[[gates]]
+id = "abstain-keeps-answers"
+description = "no more than 10% of answerable questions are wrongly answered 'no evidence'"
+candidate = "abstain"
+metric = "answer_kept"
+min = 0.90
+
+[[gates]]
+id = "abstain-no-recall-loss"
+description = "abstention costs at most 5 points of recall@5"
+candidate = "abstain"
+baseline = "keyword"
+metric = "recall@5"
+min_delta = -0.05
+
+[[gates]]
+id = "neighbours-recover-split-facts"
+description = "on multi-session questions, context recall improves by at least 10 points, CI above zero"
+candidate = "neighbours"
+baseline = "keyword"
+metric = "recall_ctx@5"
+category = "multi-session"
+min_delta = 0.10
+require_ci_lower_above = 0.0
+
+[[gates]]
+id = "neighbours-leave-ranking-alone"
+description = "expansion never changes the ranked hits: recall@5 delta is zero or better"
+candidate = "neighbours"
+baseline = "keyword"
+metric = "recall@5"
+min_delta = 0.0
+
+[[gates]]
+id = "recency-prefers-latest"
+description = "on knowledge-update questions the latest row ranks above the superseded one, +20 points, CI above zero"
+candidate = "recency"
+baseline = "keyword"
+metric = "ku_latest_first"
+category = "knowledge-update"
+min_delta = 0.20
+require_ci_lower_above = 0.0
+
+[[gates]]
+id = "recency-no-recall-loss"
+description = "recency costs at most 5 points of recall@5"
+candidate = "recency"
+baseline = "keyword"
+metric = "recall@5"
+min_delta = -0.05
+
+[[gates]]
+id = "slice4-no-recall-loss"
+description = "all slice-4 refinements together cost at most 5 points of recall@5"
+candidate = "slice4"
+baseline = "keyword"
+metric = "recall@5"
+min_delta = -0.05

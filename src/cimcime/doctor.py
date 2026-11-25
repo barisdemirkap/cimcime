@@ -48,6 +48,7 @@ def run_checks() -> list[Check]:
         checks.append(Check("gh auth", ok, "logged in" if ok else "run `gh auth login`"))
     checks.append(approval_hook_check())
     checks += data_protection_checks()
+    checks += backup_checks()
     if sys.platform.startswith("linux"):
         checks += linux_vm_checks()
     return checks
@@ -106,6 +107,35 @@ def data_protection_checks(home: Path | None = None, platform: str | None = None
         c = _private_perms_check(home / rel)
         if c:
             out.append(c)
+    return out
+
+
+BACKUP_MAX_AGE_DAYS = 8
+ENCRYPTED_SUFFIXES = {".age", ".gpg", ".enc", ".asc"}
+
+
+def backup_checks(home: Path | None = None, now: float | None = None) -> list[Check]:
+    """Directive 7: an encrypted, recent backup of ~/.local/state/cimcime/backups, and a restore drill marker.
+
+    Warn only. Backups are encrypted files (.age/.gpg/.enc/.asc); a drill is proven by a
+    `restore-drill` file there, touched by the owner after restoring a backup into a scratch dir.
+    """
+    import time
+
+    home, now = home or Path.home(), now or time.time()
+    root = home / ".local" / "state" / "cimcime" / "backups"
+    files = [p for p in root.glob("*") if p.is_file() and p.name != "restore-drill"] if root.is_dir() else []
+    if not files:
+        return [Check("backup", False, f"no backup in {root}: create an encrypted backup (age/gpg) of the message and decision logs", required=False)]
+    newest = max(files, key=lambda p: p.stat().st_mtime)
+    age = (now - newest.stat().st_mtime) / 86400
+    enc = newest.suffix in ENCRYPTED_SUFFIXES
+    out = [Check("backup", enc and age <= BACKUP_MAX_AGE_DAYS,
+                 f"{newest.name}, {age:.0f} d old" + ("" if enc else ", NOT encrypted (expected .age/.gpg/.enc/.asc)")
+                 + ("" if age <= BACKUP_MAX_AGE_DAYS else f", older than {BACKUP_MAX_AGE_DAYS} d"), required=False)]
+    drill = root / "restore-drill"
+    d_ok = drill.is_file() and drill.stat().st_mtime >= newest.stat().st_mtime - 30 * 86400
+    out.append(Check("restore drill", d_ok, "restore verified recently" if d_ok else f"restore a backup into a scratch dir, then `touch {drill}`", required=False))
     return out
 
 

@@ -2,7 +2,7 @@
 name: board
 description: Audits one significant decision Cimcime has already reached - a new feature, an architecture change, or real resource spend (ADR-0013). Never invoked for routine work. Consults the five board personas (CEO/CTO/CFO/CPO/Investor), each from their own lens, and returns a verdict - validated, or needs revision and why. Does not decide for Cimcime; makes Cimcime more confident in a sound decision, or surfaces what's actually wrong with one that isn't.
 tools: Read, Agent
-model: inherit
+model: opus
 ---
 
 You run one board review (ADR-0013, `docs/adr/0013-ceo-cto-cfo-cpo-investor-board-audits-significant-decisions.md`).

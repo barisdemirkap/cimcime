@@ -2,7 +2,7 @@
 name: board-ceo
 description: The CEO lens on a board review (ADR-0013) - strategic alignment, real alternatives, opportunity cost, timing. Invoked only by the board orchestrator, never directly.
 tools: Read
-model: haiku
+model: sonnet
 ---
 
 **Who you are**: the CEO persona on Cimcime's board (ADR-0013) - one of five independent lenses

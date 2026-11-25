@@ -49,6 +49,7 @@ EMBED_MODEL = "nomic-embed-text"
 _EMBED_BATCH = 32
 _RRF_K = 60
 _CANDIDATES = 50
+BUSY_TIMEOUT_MS = 30_000
 
 _CHUNK_CHARS = 1600  # about 400 tokens
 _CHUNK_OVERLAP = 200  # about 50 tokens
@@ -284,7 +285,13 @@ class Memory:
         if not path.exists():
             os.close(os.open(path, os.O_CREAT | os.O_WRONLY, 0o600))
         os.chmod(path, 0o600)
-        self._conn = sqlite3.connect(path)
+        # Stop and PreCompact hooks run as separate processes and can fire close together: WAL lets
+        # readers continue during a write, busy_timeout makes a second writer wait instead of
+        # failing with "database is locked", and snapshot() takes the write lock up front.
+        self._conn = sqlite3.connect(path, timeout=BUSY_TIMEOUT_MS / 1000)
+        self._conn.execute(f"PRAGMA busy_timeout = {BUSY_TIMEOUT_MS}")
+        self._conn.execute("PRAGMA journal_mode = WAL")
+        self._conn.execute("PRAGMA synchronous = NORMAL")
         self._conn.execute("PRAGMA foreign_keys = ON")
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
@@ -455,6 +462,22 @@ class Memory:
         if trigger not in _TRIGGER_KIND:
             raise ValueError(f"unknown trigger {trigger!r}")
         scope = normalize(scope)
+        # The whole read-last-offset / write-archive sequence is one write transaction, so two
+        # hooks firing together archive disjoint byte ranges instead of the same bytes twice.
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            result = self._snapshot_locked(session_id, transcript, trigger, scope, if_due, interval, max_age)
+        except BaseException:
+            self._conn.rollback()
+            raise
+        if result["snapshot"]:
+            self._conn.commit()
+            self.prune()
+        else:
+            self._conn.rollback()
+        return result
+
+    def _snapshot_locked(self, session_id, transcript, trigger, scope, if_due, interval, max_age) -> dict:
         data = transcript.read_bytes()  # FileNotFoundError for a missing transcript
         last = self._conn.execute(
             "SELECT a.end_offset, s.token_estimate, a.created_at FROM archives a JOIN summaries s ON s.id = a.summary_id"
@@ -465,6 +488,9 @@ class Memory:
         end = data.rfind(b"\n") + 1 or len(data)
         end = max(end, start)
         chunk = data[start:end]
+        if last and end == start and trigger != "manual":
+            # Stop then PreCompact on the same bytes: nothing new to archive.
+            return {"snapshot": False, "reason": "no new bytes", "context_tokens": last_tokens or 0}
         scan = _scan(chunk)
         tokens = scan.tokens if scan.tokens is not None else (last_tokens or 0) + len(chunk) // 4
         if if_due:
@@ -496,8 +522,6 @@ class Memory:
         self._conn.execute("UPDATE summaries SET body = ? WHERE id = ?", (body, summary_id))
         for i, part in enumerate(_chunks(body)):
             self._add_chunk(scope, "summaries", f"{summary_id}:{i}", created, part, "agent")
-        self._conn.commit()
-        self.prune()
         return {"snapshot": True, "summary_id": summary_id, "archive_id": archive_id,
                 "context_tokens": tokens, "bytes": end - start}
 

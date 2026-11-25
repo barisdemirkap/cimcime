@@ -13,7 +13,7 @@ k = 10
 
 # Frozen fixtures: file name -> sha256 of its bytes. A mismatch aborts the run (exit 2).
 [fixtures]
-"synthetic-v1.json" = "PLACEHOLDER"
+"synthetic-v1.json" = "959eeb6e032dc878b9f04be2bc86396234ae141024223d854a58ac16c68a71cc"
 
 [variants.keyword]            # baseline: FTS5 BM25, no refinements
 mode = "keyword"

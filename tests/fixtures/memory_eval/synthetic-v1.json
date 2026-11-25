@@ -1,0 +1,1155 @@
+{
+ "format": 1,
+ "name": "synthetic-v1",
+ "synthetic": true,
+ "now": "2026-11-01T12:00:00+00:00",
+ "docs": [
+  {
+   "table": "messages",
+   "id": "101",
+   "at": "2026-08-03T10:41:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Bench lighting timer is set to sixteen hours for the seedling trays.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "102",
+   "at": "2026-08-06T10:42:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Compost tea batch needs stirring twice a day this week.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "103",
+   "at": "2026-08-09T10:43:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "The schedule for the delivery truck is unclear, ask the depot.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "104",
+   "at": "2026-08-12T10:44:00+00:00",
+   "scope": "fernwick",
+   "trust": "agent",
+   "text": "Decision pending on the new shade cloth supplier.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "105",
+   "at": "2026-08-15T10:45:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Seed tray labels are fading, reprint them with the waterproof pen.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "106",
+   "at": "2026-08-18T10:46:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Weekly checklist: wipe the sensor lens, check the vents, log the humidity.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "107",
+   "at": "2026-08-21T10:47:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "The mint bed is spreading again, cut it back before it takes over the path.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "108",
+   "at": "2026-08-24T10:48:00+00:00",
+   "scope": "fernwick",
+   "trust": "agent",
+   "text": "Note to self: the hose reel squeaks when pulled past the second bench.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "109",
+   "at": "2026-08-27T10:49:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Tomato blossom drop might be heat stress, watch the afternoon temperature.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "110",
+   "at": "2026-08-30T10:50:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "The status of the grant paperwork is still unknown.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "111",
+   "at": "2026-09-02T10:51:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Ordered replacement gloves in size medium.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "112",
+   "at": "2026-09-05T10:52:00+00:00",
+   "scope": "fernwick",
+   "trust": "agent",
+   "text": "Frost warning tonight, cover the lettuce rows.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "113",
+   "at": "2026-09-08T10:53:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Visitors on Saturday want a tour of the propagation house.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "114",
+   "at": "2026-09-11T10:54:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Pollinator count was low this morning, only two bees near the basil.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "115",
+   "at": "2026-09-14T10:55:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "The team agreed the greenhouse door latch should be oiled monthly.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "116",
+   "at": "2026-09-17T10:56:00+00:00",
+   "scope": "fernwick",
+   "trust": "agent",
+   "text": "Mulch delivery arrived and was dumped by the gate instead of the shed.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "117",
+   "at": "2026-09-20T10:57:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Check whether the rain barrel overflow pipe is blocked by leaves.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "118",
+   "at": "2026-09-23T10:58:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Pepper seedlings look leggy, move them closer to the light.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "119",
+   "at": "2026-09-26T10:59:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Reminder that the weather station battery lasts about three months.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "120",
+   "at": "2026-09-29T11:00:00+00:00",
+   "scope": "fernwick",
+   "trust": "agent",
+   "text": "Spreadsheet of seed varieties needs a column for days to germination.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "decisions",
+   "id": "11",
+   "at": "2026-08-11T09:00:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Seedling heat mat is replaced by the thermostat controlled propagation cable, bought from Linden Supply.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "decisions",
+   "id": "12",
+   "at": "2026-08-15T09:00:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "The rain sensor threshold is fixed at 3 millimetres per hour before irrigation pauses.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "121",
+   "at": "2026-08-21T11:01:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Backups of the sensor log go to the second disk every night at 02:30.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "122",
+   "at": "2026-08-23T11:02:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "The north bench holds the basil trial, the south bench holds the chilli trial.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "decisions",
+   "id": "13",
+   "at": "2026-08-26T09:00:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Vent motors use the quiet gearbox variant, model QG-7, to avoid waking the neighbours.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "123",
+   "at": "2026-08-28T11:03:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Sensor calibration offsets are stored in the calibration yaml next to the logger script.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "decisions",
+   "id": "14",
+   "at": "2026-08-31T09:00:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Humidity alerts go to the owner only, never to the volunteer group.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "124",
+   "at": "2026-09-03T11:04:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Label every tray with the sowing date using the green marker, not the black one.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "125",
+   "at": "2026-09-10T11:05:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Today we flashed the irrigation controller firmware on the east manifold.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "126",
+   "at": "2026-09-10T11:06:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Version 4.2 went on cleanly, rollback image saved on the stick.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "127",
+   "at": "2026-09-11T11:07:00+00:00",
+   "scope": "fernwick",
+   "trust": "agent",
+   "text": "Bench lighting timer is set to sixteen hours for the seedling trays. (again)",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "128",
+   "at": "2026-09-14T11:08:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Talked with the electrician about the greenhouse circuit breaker rating.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "129",
+   "at": "2026-09-14T11:09:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "He recommends thirty two amps with a residual current device.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "130",
+   "at": "2026-09-15T11:10:00+00:00",
+   "scope": "fernwick",
+   "trust": "agent",
+   "text": "Compost tea batch needs stirring twice a day this week. (again)",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "131",
+   "at": "2026-09-18T11:11:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Picked the courier for the seed shipment to the community garden.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "132",
+   "at": "2026-09-18T11:12:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Boxes leave on the fourteenth, insured for two hundred.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "133",
+   "at": "2026-09-19T11:13:00+00:00",
+   "scope": "fernwick",
+   "trust": "agent",
+   "text": "The schedule for the delivery truck is unclear, ask the depot. (again)",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "134",
+   "at": "2026-09-22T11:14:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Discussed the dehumidifier placement near the propagation house.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "135",
+   "at": "2026-09-22T11:15:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Hang it from the second rafter, drain towards the gutter.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "136",
+   "at": "2026-09-23T11:16:00+00:00",
+   "scope": "fernwick",
+   "trust": "agent",
+   "text": "Decision pending on the new shade cloth supplier. (again)",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "137",
+   "at": "2026-09-26T11:17:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Reviewed the data logger memory card situation.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "138",
+   "at": "2026-09-26T11:18:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Swap to the 64 gigabyte one, the old card is wearing out.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "139",
+   "at": "2026-09-27T11:19:00+00:00",
+   "scope": "fernwick",
+   "trust": "agent",
+   "text": "Seed tray labels are fading, reprint them with the waterproof pen. (again)",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "140",
+   "at": "2026-09-30T11:20:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Planned the volunteer rota for the autumn planting weekend.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "141",
+   "at": "2026-09-30T11:21:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Mia takes Saturday morning, Jonas takes the afternoon.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "142",
+   "at": "2026-10-01T11:22:00+00:00",
+   "scope": "fernwick",
+   "trust": "agent",
+   "text": "Weekly checklist: wipe the sensor lens, check the vents, log the humidity. (again)",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "143",
+   "at": "2026-10-10T11:23:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "From now on never water the seedlings after sunset, it invites mould.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "144",
+   "at": "2026-10-12T11:24:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Always write the sowing log in metric units, no cups or ounces.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "145",
+   "at": "2026-10-15T11:25:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Do not reorder the same seed variety twice in one month.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "146",
+   "at": "2026-10-18T11:26:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "I prefer the short weekly summary over the long daily email.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "decisions",
+   "id": "15",
+   "at": "2026-10-30T09:00:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Watering schedule is every six hours during summer.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "decisions",
+   "id": "16",
+   "at": "2026-11-02T09:00:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Decision: the watering schedule changed after the audit, now every four hours during summer, owner approved.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "147",
+   "at": "2026-11-05T11:27:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Decision: the greenhouse minimum night temperature is twelve degrees, agreed with the grower.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "148",
+   "at": "2026-11-08T11:28:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Minimum night temperature is ten degrees.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "decisions",
+   "id": "17",
+   "at": "2026-11-11T09:00:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Seed supplier for brassicas is Hartwell Seeds.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "decisions",
+   "id": "18",
+   "at": "2026-11-14T09:00:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Decision: switching the brassica seed supplier to Orrin Farm Seeds because delivery is faster, effective next month.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "149",
+   "at": "2026-11-17T11:29:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Decision: harvest crates are the blue stackable ones, forty litre size, from the depot.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "150",
+   "at": "2026-11-20T11:30:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Harvest crates are the grey ones.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "decisions",
+   "id": "19",
+   "at": "2026-11-23T09:00:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Volunteer group meets on Tuesdays.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "decisions",
+   "id": "20",
+   "at": "2026-11-26T09:00:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Update: after the survey, the volunteer group meeting moved and now happens on Thursdays at the usual hour.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "151",
+   "at": "2026-11-29T11:31:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Decision: the shade cloth is forty percent, bought for the south roof, supplier unchanged.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "152",
+   "at": "2026-12-02T11:32:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Shade cloth is sixty percent.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "decisions",
+   "id": "21",
+   "at": "2026-12-05T09:00:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Compost turning is once a week.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "decisions",
+   "id": "22",
+   "at": "2026-12-08T09:00:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Compost turning was increased after the smell complaint, it is now twice a week with the long fork.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "153",
+   "at": "2026-12-11T11:33:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Decision: logger sampling interval is one minute for all sensors, confirmed by the owner.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "154",
+   "at": "2026-12-14T11:34:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Logger sampling interval is five minutes.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "155",
+   "at": "2026-11-29T11:35:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the roof repair: quotes requested from two roofers.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "156",
+   "at": "2026-12-02T11:36:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the roof repair: one roofer visited and measured.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "157",
+   "at": "2026-12-05T11:37:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the roof repair: work scheduled for the first week of December, deposit paid.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "158",
+   "at": "2026-12-07T11:38:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the water tank cleaning: not started.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "159",
+   "at": "2026-12-10T11:39:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the water tank cleaning: drained and scrubbed.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "160",
+   "at": "2026-12-13T11:40:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the water tank cleaning: refilled and tested clear.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "161",
+   "at": "2026-12-15T11:41:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the sensor rewiring: planning the cable run.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "162",
+   "at": "2026-12-18T11:42:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the sensor rewiring: cable laid along the east wall.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "163",
+   "at": "2026-12-21T11:43:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the sensor rewiring: all eight sensors reporting again.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "164",
+   "at": "2026-12-23T11:44:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the autumn seed order: list drafted.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "165",
+   "at": "2026-12-26T11:45:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the autumn seed order: list approved by the owner.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "166",
+   "at": "2026-12-29T11:46:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the autumn seed order: shipped and expected next week.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "167",
+   "at": "2026-12-31T11:47:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the polytunnel cover: ordered.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "168",
+   "at": "2027-01-03T11:48:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the polytunnel cover: delayed at the port.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "169",
+   "at": "2027-01-06T11:49:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the polytunnel cover: fitted over the frame.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "170",
+   "at": "2027-01-08T11:50:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the path gravel: quote received.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "171",
+   "at": "2027-01-11T11:51:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the path gravel: quote accepted.",
+   "provenance": "synthetic"
+  },
+  {
+   "table": "messages",
+   "id": "172",
+   "at": "2027-01-14T11:52:00+00:00",
+   "scope": "fernwick",
+   "trust": "owner",
+   "text": "Status of the path gravel: delivered and raked.",
+   "provenance": "synthetic"
+  }
+ ],
+ "questions": [
+  {
+   "id": "q01",
+   "category": "extraction",
+   "query": "which supplier did we buy the propagation cable from",
+   "gold": [
+    "decisions:11"
+   ],
+   "scope": "fernwick",
+   "brief_should_answer": true
+  },
+  {
+   "id": "q02",
+   "category": "extraction",
+   "query": "rain sensor threshold millimetres irrigation pauses",
+   "gold": [
+    "decisions:12"
+   ],
+   "scope": "fernwick",
+   "brief_should_answer": true
+  },
+  {
+   "id": "q03",
+   "category": "extraction",
+   "query": "when does the sensor log backup run at night",
+   "gold": [
+    "messages:121"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q04",
+   "category": "extraction",
+   "query": "which bench holds the chilli trial",
+   "gold": [
+    "messages:122"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q05",
+   "category": "extraction",
+   "query": "vent motors gearbox model",
+   "gold": [
+    "decisions:13"
+   ],
+   "scope": "fernwick",
+   "brief_should_answer": true
+  },
+  {
+   "id": "q06",
+   "category": "extraction",
+   "query": "where are sensor calibration offsets stored",
+   "gold": [
+    "messages:123"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q07",
+   "category": "extraction",
+   "query": "who receives humidity alerts",
+   "gold": [
+    "decisions:14"
+   ],
+   "scope": "fernwick",
+   "brief_should_answer": true
+  },
+  {
+   "id": "q08",
+   "category": "extraction",
+   "query": "which marker colour for the sowing date label",
+   "gold": [
+    "messages:124"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q09",
+   "category": "multi-session",
+   "query": "irrigation controller firmware which version",
+   "gold": [
+    "messages:125",
+    "messages:126"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q10",
+   "category": "multi-session",
+   "query": "greenhouse circuit breaker rating what did the electrician recommend",
+   "gold": [
+    "messages:128",
+    "messages:129"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q11",
+   "category": "multi-session",
+   "query": "courier seed shipment community garden when do boxes leave",
+   "gold": [
+    "messages:131",
+    "messages:132"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q12",
+   "category": "multi-session",
+   "query": "dehumidifier placement propagation house where to hang",
+   "gold": [
+    "messages:134",
+    "messages:135"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q13",
+   "category": "multi-session",
+   "query": "data logger memory card which size to swap",
+   "gold": [
+    "messages:137",
+    "messages:138"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q14",
+   "category": "multi-session",
+   "query": "volunteer rota autumn planting weekend who takes saturday",
+   "gold": [
+    "messages:140",
+    "messages:141"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q15",
+   "category": "preference",
+   "query": "rule about watering seedlings after sunset",
+   "gold": [
+    "messages:143"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q16",
+   "category": "preference",
+   "query": "sowing log units metric rule",
+   "gold": [
+    "messages:144"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q17",
+   "category": "preference",
+   "query": "reordering the same seed variety in one month",
+   "gold": [
+    "messages:145"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q18",
+   "category": "preference",
+   "query": "weekly summary or daily email preference",
+   "gold": [
+    "messages:146"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q19",
+   "category": "knowledge-update",
+   "query": "watering schedule every hours during summer",
+   "gold": [
+    "decisions:16"
+   ],
+   "scope": "fernwick",
+   "superseded": [
+    "decisions:15"
+   ],
+   "brief_should_answer": true
+  },
+  {
+   "id": "q20",
+   "category": "knowledge-update",
+   "query": "greenhouse minimum night temperature degrees",
+   "gold": [
+    "messages:148"
+   ],
+   "scope": "fernwick",
+   "superseded": [
+    "messages:147"
+   ]
+  },
+  {
+   "id": "q21",
+   "category": "knowledge-update",
+   "query": "brassica seed supplier",
+   "gold": [
+    "decisions:18"
+   ],
+   "scope": "fernwick",
+   "superseded": [
+    "decisions:17"
+   ],
+   "brief_should_answer": true
+  },
+  {
+   "id": "q22",
+   "category": "knowledge-update",
+   "query": "harvest crates colour",
+   "gold": [
+    "messages:150"
+   ],
+   "scope": "fernwick",
+   "superseded": [
+    "messages:149"
+   ]
+  },
+  {
+   "id": "q23",
+   "category": "knowledge-update",
+   "query": "volunteer group meets on which day",
+   "gold": [
+    "decisions:20"
+   ],
+   "scope": "fernwick",
+   "superseded": [
+    "decisions:19"
+   ],
+   "brief_should_answer": true
+  },
+  {
+   "id": "q24",
+   "category": "knowledge-update",
+   "query": "shade cloth percent south roof",
+   "gold": [
+    "messages:152"
+   ],
+   "scope": "fernwick",
+   "superseded": [
+    "messages:151"
+   ]
+  },
+  {
+   "id": "q25",
+   "category": "knowledge-update",
+   "query": "compost turning how often",
+   "gold": [
+    "decisions:22"
+   ],
+   "scope": "fernwick",
+   "superseded": [
+    "decisions:21"
+   ],
+   "brief_should_answer": true
+  },
+  {
+   "id": "q26",
+   "category": "knowledge-update",
+   "query": "logger sampling interval",
+   "gold": [
+    "messages:154"
+   ],
+   "scope": "fernwick",
+   "superseded": [
+    "messages:153"
+   ]
+  },
+  {
+   "id": "q27",
+   "category": "temporal",
+   "query": "latest status of the roof repair",
+   "gold": [
+    "messages:157"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q28",
+   "category": "temporal",
+   "query": "latest status of the water tank cleaning",
+   "gold": [
+    "messages:160"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q29",
+   "category": "temporal",
+   "query": "latest status of the sensor rewiring",
+   "gold": [
+    "messages:163"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q30",
+   "category": "temporal",
+   "query": "latest status of the autumn seed order",
+   "gold": [
+    "messages:166"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q31",
+   "category": "temporal",
+   "query": "first status of the polytunnel cover what was it at the start",
+   "gold": [
+    "messages:167"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q32",
+   "category": "temporal",
+   "query": "first status of the path gravel what was it at the start",
+   "gold": [
+    "messages:170"
+   ],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q33",
+   "category": "abstention",
+   "query": "what is the status of the quantum flux capacitor repair",
+   "gold": [],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q34",
+   "category": "abstention",
+   "query": "which cryptocurrency wallet did we choose for payroll",
+   "gold": [],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q35",
+   "category": "abstention",
+   "query": "who won the regional chess championship",
+   "gold": [],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q36",
+   "category": "abstention",
+   "query": "what is the wifi password at the tractor museum",
+   "gold": [],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q37",
+   "category": "abstention",
+   "query": "when is the elephant transport scheduled",
+   "gold": [],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q38",
+   "category": "abstention",
+   "query": "which satellite provider did we pick for the radar dish",
+   "gold": [],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q39",
+   "category": "abstention",
+   "query": "what was decided about the submarine hull coating",
+   "gold": [],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q40",
+   "category": "abstention",
+   "query": "what flavour of ice cream did the volunteers vote for",
+   "gold": [],
+   "scope": "fernwick"
+  },
+  {
+   "id": "q41",
+   "category": "abstention",
+   "query": "what is the status of the irrigation controller firmware",
+   "gold": [],
+   "scope": "orchard-two"
+  }
+ ]
+}

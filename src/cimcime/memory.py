@@ -54,6 +54,14 @@ BUSY_TIMEOUT_MS = 30_000
 _CHUNK_CHARS = 1600  # about 400 tokens
 _CHUNK_OVERLAP = 200  # about 50 tokens
 _ITEM_CHARS = 300
+_MAX_EXPANSION = 20
+# Normalized words that carry no evidence by themselves (English + Turkish), ignored when judging
+# how much of a query a hit actually covers.
+_STOPWORDS = frozenset(
+    "a an and are as at be by did do does for from had has have how i if in is it its me my of on or our "
+    "that the their there this to was we were what when where which who why will with you your about "
+    "bir bu su ve ile icin mi mu ne nasil neden hangi nerede kim ama de da".split()
+)
 _PROMISE_DAYS = 14
 
 # Matched against normalize()d text, so Turkish is written without diacritics here.
@@ -126,6 +134,22 @@ def _fts_query(query: str) -> str:
     return " OR ".join(f'"{t}"' for t in terms)
 
 
+def _terms(text: str) -> set[str]:
+    return set(re.findall(r"\w+", normalize(text)))
+
+
+def _content_terms(query: str) -> set[str]:
+    terms = _terms(query)
+    return (terms - _STOPWORDS) or terms
+
+
+def _epoch(at: str) -> float:
+    try:
+        return datetime.fromisoformat(at).timestamp()
+    except ValueError:
+        return 0.0
+
+
 def _chunks(text: str) -> list[str]:
     if len(text) <= _CHUNK_CHARS:
         return [text]
@@ -148,6 +172,8 @@ class Hit:
     at: str
     trust: str
     score: float
+    chunk_id: int = 0
+    expanded: bool = False  # True: a neighbour added for context, not a ranked match
 
 
 @dataclass(frozen=True)
@@ -155,6 +181,7 @@ class SearchResult:
     mode: str
     hits: list[Hit]
     note: str = "keyword (FTS5) only; no embeddings stored"
+    evidence: bool = True  # False: retrieval was weak and the caller should say "no evidence"
 
 
 @dataclass
@@ -321,6 +348,12 @@ class Memory:
 
     # --- ingest ---------------------------------------------------------------------------
 
+    def add_row(self, scope: str, table: str, source_id: str, at: str, text: str, trust: str) -> bool:
+        """Add one row directly (frozen eval fixtures, tests). Idempotent; returns whether it was new."""
+        added = self._add_chunk(normalize(scope), table, source_id, _utc(at), text, trust)
+        self._conn.commit()
+        return added
+
     def index(self, source: Path) -> dict:
         """Ingest Telegram messages and decisions from the message log (opened read-only).
         Idempotent; rows older than the retention window are skipped, then old rows pruned."""
@@ -417,7 +450,64 @@ class Memory:
         scored = sorted(((_cosine(qvec, _unpack(r[7])), r) for r in rows), key=lambda x: (-x[0], x[1][0]))
         return [r[:7] for sim, r in scored[:k] if sim > 0]
 
-    def search(self, query: str, scopes: list[str] | None = None, k: int = 10) -> SearchResult:
+    def search(
+        self,
+        query: str,
+        scopes: list[str] | None = None,
+        k: int = 10,
+        *,
+        abstain_min_coverage: float | None = None,
+        neighbours: int = 0,
+        recency_tolerance: float | None = None,
+    ) -> SearchResult:
+        """Ranked search plus the slice-4 refinements, each off by default and judged by the
+        retrieval eval (`cimcime eval-memory`) before it is turned on anywhere:
+
+        - `recency_tolerance`: hits whose score is within that fraction of the top score band
+          together and are ordered newest first inside a band (a near-tie goes to the newer row).
+        - `abstain_min_coverage`: when the best hit covers less than this fraction of the query's
+          content words, return no hits and `evidence=False` ("no evidence") instead of weak matches.
+        - `neighbours`: after the ranked hits, append the `n` chunks on each side of every message
+          hit (same scope), flagged `expanded=True`, so a fact one message away is not lost.
+        """
+        result = self._search_ranked(query, scopes, k)
+        hits = list(result.hits)
+        if recency_tolerance is not None and hits and hits[0].score > 0:
+            top = hits[0].score
+            band = lambda h: int((top - h.score) / (top * recency_tolerance))  # noqa: E731
+            order = sorted(range(len(hits)), key=lambda i: (band(hits[i]), -_epoch(hits[i].at), i))
+            hits = [hits[i] for i in order]
+        evidence = bool(hits)
+        note = result.note
+        if abstain_min_coverage is not None and evidence:
+            wanted = _content_terms(query)
+            best = max((len(wanted & _terms(h.text)) / len(wanted) if wanted else 0.0) for h in hits)
+            if best < abstain_min_coverage:
+                return SearchResult(result.mode, [], f"no evidence: best hit covers {best:.2f} of the query"
+                                    f" (< {abstain_min_coverage})", evidence=False)
+        if neighbours > 0 and hits:
+            hits += self._neighbours(hits, scopes, neighbours)
+        return SearchResult(result.mode, hits, note, evidence)
+
+    def _neighbours(self, hits: list[Hit], scopes: list[str] | None, n: int) -> list[Hit]:
+        where, params = self._scope_filter(scopes)
+        seen = {h.chunk_id for h in hits}
+        extra: list[Hit] = []
+        for h in hits:
+            if h.source_table != "messages":
+                continue
+            rows = self._conn.execute(
+                "SELECT c.id, c.text, c.scope, c.source_table, c.source_id, c.at, c.trust FROM chunks c"
+                " WHERE c.id BETWEEN ? AND ? AND c.source_table = ? AND c.scope = ?" + where + " ORDER BY c.id",
+                [h.chunk_id - n, h.chunk_id + n, h.source_table, h.scope, *params],
+            ).fetchall()
+            for row in rows:
+                if row[0] not in seen and len(extra) < _MAX_EXPANSION:
+                    seen.add(row[0])
+                    extra.append(Hit(*row[1:7], score=0.0, chunk_id=row[0], expanded=True))
+        return extra
+
+    def _search_ranked(self, query: str, scopes: list[str] | None = None, k: int = 10) -> SearchResult:
         """Hybrid search: FTS5 BM25 and, when embeddings exist and Ollama answers, cosine
         similarity, fused by reciprocal rank (RRF). Falls back to keyword-only otherwise.
         Without `scopes`, every non-sensitive scope is searched; a sensitive scope only when named."""
@@ -431,7 +521,7 @@ class Memory:
             except EmbedderUnavailable:
                 note = "keyword (FTS5) only; embedding backend unavailable"
         if qvec is None:
-            hits = [Hit(*row[1:7], score=round(-row[7], 4)) for row in fts[:k]]
+            hits = [Hit(*row[1:7], score=round(-row[7], 4), chunk_id=row[0]) for row in fts[:k]]
             return SearchResult("keyword", hits, note)
         fused: dict[int, float] = {}
         rows: dict[int, tuple] = {}
@@ -440,7 +530,7 @@ class Memory:
                 fused[row[0]] = fused.get(row[0], 0.0) + 1.0 / (_RRF_K + rank + 1)
                 rows[row[0]] = row
         order = sorted(fused, key=lambda cid: (-fused[cid], rows[cid][5]))[:k]
-        hits = [Hit(*rows[cid][1:7], score=round(fused[cid], 5)) for cid in order]
+        hits = [Hit(*rows[cid][1:7], score=round(fused[cid], 5), chunk_id=cid) for cid in order]
         return SearchResult("hybrid", hits, "FTS5 + vector cosine, reciprocal rank fusion")
 
     # --- snapshot -------------------------------------------------------------------------

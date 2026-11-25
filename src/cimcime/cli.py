@@ -301,6 +301,8 @@ def _local_command(argv: list[str]) -> int | None:
     """Commands that need no GitHub store (and so no configured repo)."""
     if argv and argv[0] in _MEMORY_COMMANDS:
         return _memory_command(argv)
+    if argv and argv[0] == "eval-memory":
+        return _eval_memory_command(argv[1:])
     if argv and argv[0] in {"export-data", "delete-data"}:
         return _owner_data_command(argv)
     if not argv or argv[0] not in {"doctor", "init", "service", "watchdog", "status", "voice", "usage-check"}:
@@ -384,6 +386,38 @@ def _owner_data_command(argv: list[str]) -> int:
         result = owner_data.delete_data(args.chat_id, args.decisions, args.yes)
     print(json.dumps(result))
     return 0
+
+
+DEFAULT_EVAL_CONFIG = Path(__file__).resolve().parents[2] / "docs" / "memory-eval" / "thresholds.toml"
+
+
+def _eval_memory_command(argv: list[str]) -> int:
+    """Deterministic retrieval-first memory eval (ADR-0017, docs/memory-eval.md). Exit 0 when every
+    pre-registered gate passes or is skipped, 1 when one fails, 2 on a bad or tampered fixture."""
+    from cimcime import memory_eval
+
+    p = argparse.ArgumentParser(prog="cimcime eval-memory")
+    p.add_argument("--fixture", required=True, help="frozen fixture JSON (SHA-256 pinned in the config)")
+    p.add_argument("--config", default=str(DEFAULT_EVAL_CONFIG), help="thresholds TOML")
+    p.add_argument("--embedder", choices=["none", "hash", "ollama", "unavailable"], default="none",
+                   help="none: keyword variants only; hash: stdlib stand-in (plumbing, not quality);"
+                        " ollama: local nomic-embed-text; unavailable: simulate an outage")
+    p.add_argument("--json", action="store_true", help="print the full JSON report instead of Markdown")
+    p.add_argument("--out-dir", default=None, help="also write report.json and report.md here (outside the repo)")
+    args = p.parse_args(argv)
+    try:
+        report = memory_eval.evaluate(Path(args.fixture), Path(args.config), args.embedder)
+    except (memory_eval.FixtureError, memory_eval.ManifestError) as exc:
+        print(f"cimcime eval-memory: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 2
+    text = memory_eval.render_markdown(report)
+    if args.out_dir:
+        out = Path(args.out_dir)
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "report.json").write_text(json.dumps(report, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+        (out / "report.md").write_text(text, encoding="utf-8")
+    print(json.dumps(report, ensure_ascii=False) if args.json else text)
+    return 0 if report["ok"] else 1
 
 
 _MEMORY_COMMANDS = {"memory-index", "memory-search", "memory-snapshot", "memory-brief", "memory-embed", "memory-checkpoint"}

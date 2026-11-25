@@ -139,6 +139,15 @@ def screen_prompt_alert(signal: str | None, state: dict, key: str) -> bool:
     return signal == "prompt" and state.get("screen_alert") != key
 
 
+def service_down_alert(svc: str, state: dict, key: str) -> bool:
+    """Alert once per outage when the service is down and a restart did not bring it back.
+
+    Boot-stall case: after a power cut the service can fail to come up (or sit behind a macOS
+    dialog nobody can see). The unanswered-message path cannot see that, so tell the owner.
+    """
+    return svc == "restart-failed" and state.get("down_alert") != key
+
+
 def read_token() -> str | None:
     try:
         text = ENV_FILE.read_text(encoding="utf-8")
@@ -181,6 +190,15 @@ def run_once() -> str:
         svc = "restarted" if service.restart() else "restart-failed"
 
     token = read_token()
+    chat0 = owner_chat_id()
+    if token and chat0 and service_down_alert(svc, state, "down"):
+        send_alert(token, chat0, "Cimcime's channel service is down and the automatic restart failed. "
+                   "It may be blocked at boot (e.g. a macOS permission dialog on the Mac mini).")
+        state["down_alert"] = "down"
+        state_file.write_text(json.dumps(state), encoding="utf-8")
+    elif svc != "restart-failed" and state.get("down_alert"):
+        state.pop("down_alert")  # recovered: re-arm
+        state_file.write_text(json.dumps(state), encoding="utf-8")
     api = "ok" if api_ok(token) else "FAIL"
 
     stuck = "none"

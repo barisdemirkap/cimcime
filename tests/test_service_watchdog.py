@@ -104,3 +104,10 @@ def test_stuck_signal_recognises_spaceless_startup_dialog(tmp_path):
     old = now.timestamp() - 600
     os.utime(f, (old, old))
     assert watchdog.stuck_signal(f, now) == "prompt"
+
+
+def test_service_down_alert_once_per_outage():
+    assert watchdog.service_down_alert("restart-failed", {}, "down")
+    assert not watchdog.service_down_alert("restart-failed", {"down_alert": "down"}, "down")
+    assert not watchdog.service_down_alert("ok", {}, "down")
+    assert not watchdog.service_down_alert("restarted", {}, "down")
